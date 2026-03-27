@@ -1,0 +1,15 @@
+# Credenciais e overrides locais
+profiles.yml
+.env
+.user.yml
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# dbt
+target/
+dbt_packages/
+logs/

@@ -1,5 +1,12 @@
-# dbt-spark profiles - Spark Thrift
-# Variáveis: SPARK_THRIFT_HOST, SPARK_THRIFT_USER, SPARK_THRIFT_PASSWORD
+# Copie para profiles.yml (na mesma pasta do dbt_project.yml) e use com DBT_PROFILES_DIR.
+# Credenciais vêm do .env — não commite profiles.yml se preferir overrides locais.
+#
+# Uso local:
+#   cp profiles.yml.example profiles.yml
+#   export DBT_PROFILES_DIR="$(pwd)"
+#   set -a && source .env && set +a
+#   dbt debug
+
 lakehouse_tasy:
   target: dev
   outputs:
@@ -9,13 +16,15 @@ lakehouse_tasy:
       auth: LDAP
       schema: raw
       host: "{{ env_var('SPARK_THRIFT_HOST') }}"
-      port: 10000
+      port: "{{ env_var('SPARK_THRIFT_PORT', '10009') | as_number }}"
       user: "{{ env_var('SPARK_THRIFT_USER') }}"
       password: "{{ env_var('SPARK_THRIFT_PASSWORD') }}"
       connect_timeout: 60
-      connect_retries: 3
+      connect_retries: 1
       retry_all: true
       server_side_parameters:
+        "kyuubi.engine.share.level.subdomain": "dbt"
+        "spark.sql.defaultCatalog": "glue_catalog"
         "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkSessionCatalog"
         "spark.sql.catalog.spark_catalog.type": "hive"
         "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"

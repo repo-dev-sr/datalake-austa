@@ -21,6 +21,9 @@ vars:
   datalake_bucket: "austa-lakehouse-prod-data-lake-169446931765"
   aws_region: "sa-east-1"
   fonte_sistema: "tasy"
+  # CDC Bronze
+  cdc_lookback_hours: 2
+  cdc_reprocess_hours: 0
   # Paths raw (espelhando dags/common/constants.py)
   raw_tasy_stream_prefix: "raw/raw-tasy/stream/"
   raw_tasy_stream_topic_atendimento_paciente: "tasy.TASY.ATENDIMENTO_PACIENTE"

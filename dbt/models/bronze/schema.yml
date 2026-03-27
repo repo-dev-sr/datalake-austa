@@ -8,12 +8,20 @@ models:
     columns:
       - name: NR_ATENDIMENTO
         description: "Número do atendimento (PK)"
+        tests:
+          - not_null
+          - unique
       - name: CD_PESSOA_FISICA
         description: "Código da pessoa física (paciente)"
       - name: __op
         description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ['c', 'u', 'd', 'r']
       - name: __ts_ms
         description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
       - name: dt_criacao
         description: "Data de inserção no lakehouse"
       - name: dt_atualizacao_lakehouse
@@ -24,10 +32,22 @@ models:
   - name: bronze_tasy_proc_paciente_valor
     description: "Bronze TASY PROC_PACIENTE_VALOR — CDC do Oracle via Kafka (stream Avro)"
     columns:
+      - name: NR_SEQUENCIA
+        description: "Chave de estado atual do procedimento do paciente (valor)"
+        tests:
+          - not_null
+          - unique
       - name: __op
         description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ['c', 'u', 'd', 'r']
       - name: __ts_ms
         description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: is_deleted
+        description: "Flag de soft delete derivada de __op/__deleted"
       - name: dt_criacao
         description: "Data de inserção no lakehouse"
       - name: dt_atualizacao_lakehouse
@@ -38,10 +58,22 @@ models:
   - name: bronze_tasy_atend_paciente_unidade
     description: "Bronze TASY ATEND_PACIENTE_UNIDADE — CDC do Oracle via Kafka (stream Avro)"
     columns:
+      - name: NR_SEQ_INTERNO
+        description: "Chave técnica do atendimento por unidade (estado atual bronze)"
+        tests:
+          - not_null
+          - unique
       - name: __op
         description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ['c', 'u', 'd', 'r']
       - name: __ts_ms
         description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: is_deleted
+        description: "Flag de soft delete derivada de __op/__deleted"
       - name: dt_criacao
         description: "Data de inserção no lakehouse"
       - name: dt_atualizacao_lakehouse
@@ -52,10 +84,22 @@ models:
   - name: bronze_tasy_conta_paciente
     description: "Bronze TASY CONTA_PACIENTE — CDC do Oracle via Kafka (stream Avro)"
     columns:
+      - name: NR_ATENDIMENTO
+        description: "Numero do atendimento usado como chave de estado atual"
+        tests:
+          - not_null
+          - unique
       - name: __op
         description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ['c', 'u', 'd', 'r']
       - name: __ts_ms
         description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: is_deleted
+        description: "Flag de soft delete derivada de __op/__deleted"
       - name: dt_criacao
         description: "Data de inserção no lakehouse"
       - name: dt_atualizacao_lakehouse
@@ -66,10 +110,22 @@ models:
   - name: bronze_tasy_proc_paciente_convenio
     description: "Bronze TASY PROC_PACIENTE_CONVENIO — CDC do Oracle via Kafka (stream Avro)"
     columns:
+      - name: NR_SEQUENCIA
+        description: "Chave de estado atual do procedimento do paciente (convenio)"
+        tests:
+          - not_null
+          - unique
       - name: __op
         description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ['c', 'u', 'd', 'r']
       - name: __ts_ms
         description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: is_deleted
+        description: "Flag de soft delete derivada de __op/__deleted"
       - name: dt_criacao
         description: "Data de inserção no lakehouse"
       - name: dt_atualizacao_lakehouse
@@ -80,10 +136,22 @@ models:
   - name: bronze_tasy_procedimento_paciente
     description: "Bronze TASY PROCEDIMENTO_PACIENTE — CDC do Oracle via Kafka (stream Avro)"
     columns:
+      - name: NR_SEQUENCIA
+        description: "Chave de estado atual do procedimento do paciente"
+        tests:
+          - not_null
+          - unique
       - name: __op
         description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ['c', 'u', 'd', 'r']
       - name: __ts_ms
         description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: is_deleted
+        description: "Flag de soft delete derivada de __op/__deleted"
       - name: dt_criacao
         description: "Data de inserção no lakehouse"
       - name: dt_atualizacao_lakehouse
