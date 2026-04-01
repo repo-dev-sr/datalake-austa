@@ -58,9 +58,7 @@ Leitura detalhada (incluindo nota sobre DAG Cosmos comentada): **[docs/ARCHITECT
 | **[docs/MACROS.md](docs/MACROS.md)** | Referência das macros (`audit`, `hooks`, `tempo`, `texto`, `numerico`, `documentos`). |
 | **[docs/PLUGINS.md](docs/PLUGINS.md)** | Pacote `plugins/`, `sitecustomize`, patch dbt-spark e `.env`. |
 | **[docs/FLUXO_USO_E_DICAS.md](docs/FLUXO_USO_E_DICAS.md)** | Primeiros passos, comandos úteis, Windows, links para troubleshooting. |
-| **[../docs/dbt_camadas.md](../docs/dbt_camadas.md)** | Convenções e pseudo-código para juniors; inventário dos modelos em `models/`. |
-| **[../docs/bronze.md](../docs/bronze.md)** | Padrão SQL CDC da camada bronze. |
-| **[RUNBOOK_CDC_BRONZE.md](RUNBOOK_CDC_BRONZE.md)** | Watermark, reprocessamento e full-refresh na bronze. |
+| **[docs/dbt_camadas.md](../docs/dbt_camadas.md)** | Convenções e pseudo-código para juniors; inventário dos modelos em `models/`. |
 | **[../airflow/dags/README.md](../airflow/dags/README.md)** | Organização das DAGs (extraction, orchestration, streaming, delivery). |
 | **[../CLAUDE.md](../CLAUDE.md)** | Regras do monorepo (nomenclatura, testes, restrições dbt/Airflow). |
 
