@@ -35,11 +35,18 @@ def _pythonpath_with_dbt_plugins() -> dict[str, str]:
     }
 
 
+def _dbt_env_vars() -> dict[str, str]:
+    """Env para parse e execução dbt (Cosmos: usar só ProjectConfig.env_vars, não operator_args['env'])."""
+    merged = dict(os.environ)
+    merged.update(_pythonpath_with_dbt_plugins())
+    return merged
+
+
 def get_project_config() -> ProjectConfig:
     project_path = Path(DBT_PROJECT_DIR).resolve()
     return ProjectConfig(
         dbt_project_path=str(project_path),
-        env_vars=_pythonpath_with_dbt_plugins(),
+        env_vars=_dbt_env_vars(),
     )
 
 
@@ -82,18 +89,16 @@ def render_config_for_select(select: list[str]) -> RenderConfig:
 def dbt_operator_args() -> Dict[str, Any]:
     """Argumentos dos operadores Cosmos (dbt-spark).
 
-    Env com PYTHONPATH para `dbt/plugins` (sitecustomize / perfil).
+    Variáveis de ambiente (incl. PYTHONPATH para `dbt/plugins`) vêm de `ProjectConfig.env_vars`
+    em `get_project_config()` — não use `env` aqui (mutuamente exclusivo no Cosmos).
 
     - **pool** `spark_dbt`: limita concorrência global de jobs dbt+Kyuubi (poucos slots).
     - **queue** `dbt`: encaminha para o worker Celery `airflow-worker-dbt` (Compose EC2).
     """
-    merged = os.environ.copy()
-    merged.update(_pythonpath_with_dbt_plugins())
     return {
         "install_deps": True,
         "pool": "spark_dbt",
         "queue": "dbt",
-        "env": merged,
     }
 
 
