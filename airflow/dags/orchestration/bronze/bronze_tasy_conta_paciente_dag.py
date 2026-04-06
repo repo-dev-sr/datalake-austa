@@ -1,44 +1,44 @@
 """
-DAG bronze CONTA_PACIENTE: acionada pelo dataset tasy.CONTA_PACIENTE.
+DAG bronze CONTA_PACIENTE — desativada no Airflow.
 
-`dbt run` único (sem Cosmos) — rápido e paralelizável na fila default + pool bronze_stream.
+Substituída por `bronze_dbt_task_group_all` (orquestrada por `master_dbt_orchestrator_batch`).
+Reative o bloco `if False` abaixo para voltar ao modo dataset/stream.
 """
-from airflow.decorators import dag
-from airflow.operators.bash import BashOperator
-from airflow.utils.dates import days_ago
+if False:
+    from airflow.decorators import dag
+    from airflow.operators.bash import BashOperator
+    from airflow.utils.dates import days_ago
 
-from common.bronze_stream_dbt import (
-    BRONZE_STREAM_POOL,
-    bash_dbt_run_select,
-    bronze_dbt_run_env,
-)
-from common.constants import get_dataset_for_topic
-from common.default_args import DEFAULT_ARGS
-
-TOPIC = "tasy.TASY.CONTA_PACIENTE"
-DATASET = get_dataset_for_topic(TOPIC)
-
-MODEL = "bronze_tasy_conta_paciente"
-
-
-@dag(
-    dag_id="bronze_tasy_conta_paciente",
-    description="Bronze CONTA_PACIENTE: Avro raw → Iceberg (acionada por dataset)",
-    schedule=[DATASET],
-    start_date=days_ago(1),
-    catchup=False,
-    is_paused_upon_creation=False,
-    default_args=DEFAULT_ARGS,
-    tags=["bronze", "dbt", "tasy", "dataset", "conta_paciente", "stream"],
-)
-def bronze_tasy_conta_paciente_dag():
-    BashOperator(
-        task_id="run_bronze_tasy_conta_paciente",
-        pool=BRONZE_STREAM_POOL,
-        queue="default",
-        env=bronze_dbt_run_env(),
-        bash_command=bash_dbt_run_select(MODEL),
+    from common.bronze_stream_dbt import (
+        BRONZE_STREAM_POOL,
+        bash_dbt_run_select,
+        bronze_dbt_run_env,
     )
+    from common.constants import get_dataset_for_topic
+    from common.default_args import DEFAULT_ARGS
 
+    TOPIC = "tasy.TASY.CONTA_PACIENTE"
+    DATASET = get_dataset_for_topic(TOPIC)
 
-bronze_tasy_conta_paciente_dag()
+    MODEL = "bronze_tasy_conta_paciente"
+
+    @dag(
+        dag_id="bronze_tasy_conta_paciente",
+        description="Bronze CONTA_PACIENTE: Avro raw → Iceberg (acionada por dataset)",
+        schedule=[DATASET],
+        start_date=days_ago(1),
+        catchup=False,
+        is_paused_upon_creation=False,
+        default_args=DEFAULT_ARGS,
+        tags=["bronze", "dbt", "tasy", "dataset", "conta_paciente", "stream"],
+    )
+    def bronze_tasy_conta_paciente_dag():
+        BashOperator(
+            task_id="run_bronze_tasy_conta_paciente",
+            pool=BRONZE_STREAM_POOL,
+            queue="default",
+            env=bronze_dbt_run_env(),
+            bash_command=bash_dbt_run_select(MODEL),
+        )
+
+    bronze_tasy_conta_paciente_dag()

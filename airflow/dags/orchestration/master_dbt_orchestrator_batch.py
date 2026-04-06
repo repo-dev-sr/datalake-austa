@@ -1,9 +1,12 @@
 """
 Orquestrador batch: backfill / reprocessamento (bronze all → silver → silver_context [→ gold]).
 
+- Agendamento: a cada 1 hora (bronze all → silver → silver_context).
 - Cadeia principal: triggers com wait_for_completion.
 - Opcional: `run_cli_first=true` no conf do DagRun (ou param) para rodar `dbt run` com --vars antes dos triggers.
 """
+from datetime import timedelta
+
 from airflow.decorators import dag
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -25,7 +28,7 @@ def _pick_cli_branch(**context):
 @dag(
     dag_id="master_dbt_orchestrator_batch",
     description="Orquestrador batch: bronze all → silver → silver_context [→ gold]; opcional dbt CLI com vars",
-    schedule=None,
+    schedule=timedelta(hours=1),
     start_date=days_ago(1),
     catchup=False,
     is_paused_upon_creation=True,
