@@ -1,7 +1,7 @@
 """
 Configuração compartilhada para DAGs Astronomer Cosmos + dbt-spark (lakehouse Tasy).
 
-LoadMode.DBT_MANIFEST: lê target/manifest.json pré-compilado (requer `dbt compile` no deploy).
+LoadMode.DBT_LS: descoberta de nós via `dbt ls` no parse da DAG (evoluir para DBT_MANIFEST no deploy).
 DbtTaskGroup: use `from cosmos import DbtTaskGroup` (reexport do pacote cosmos).
 """
 from __future__ import annotations

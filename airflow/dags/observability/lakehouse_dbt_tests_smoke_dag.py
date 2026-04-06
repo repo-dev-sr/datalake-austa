@@ -26,6 +26,8 @@ DBT_PLUGINS = f"{DBT_PROJECT_DIR}/plugins"
 def lakehouse_dbt_tests_smoke_dag():
     BashOperator(
         task_id="dbt_test_silver_tag",
+        pool="spark_dbt",
+        queue="dbt",
         bash_command=(
             f"cd {DBT_PROJECT_DIR} && PYTHONPATH={DBT_PLUGINS} "
             "dbt test --select tag:silver"

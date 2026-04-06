@@ -1,6 +1,7 @@
 # Exclude from Airflow Scheduler DAG scan
 tests/
 common/
+docs/
 **/__pycache__/
 **/*.pyc
 *.md

@@ -48,6 +48,8 @@ def master_dbt_orchestrator_batch_dag():
     skip_cli = EmptyOperator(task_id="skip_cli_before_triggers")
     dbt_run_with_vars = BashOperator(
         task_id="dbt_run_with_vars",
+        pool="spark_dbt",
+        queue="dbt",
         bash_command=(
             "cd {{ params.dbt_project_dir }} && PYTHONPATH={{ params.dbt_plugins }} "
             "dbt run --select {{ params.dbt_select }} "

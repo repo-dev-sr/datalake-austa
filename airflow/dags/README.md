@@ -11,11 +11,11 @@ raw → bronze → silver → silver_context → gold
 | Pasta | Responsabilidade |
 |-------|------------------|
 | `extraction/` | Extrações batch/micro-batch para camada Raw |
-| `orchestration/` | Cosmos + dbt (bronze por tópico, camadas `*_all`, orquestradores stream/batch) |
+| `orchestration/` | Bronze por dataset (`bronze_tasy_*`: Bash + pool `bronze_stream`); camadas `*_all` e silver via **Cosmos**; orquestradores stream/batch |
 | `delivery/` | Entrega para sistemas externos (ex.: FHIR para HAPI FHIR) |
 | `streaming/` | Datasets / SQS (ex.: `stream_tasy_producer`) |
 | `observability/` | Smoke tests dbt, alertas (e-mail se SMTP configurado) |
-| `common/` | Config, `cosmos_dbt`, constantes, `default_args` |
+| `common/` | Config, `cosmos_dbt`, `bronze_stream_dbt`, constantes, `default_args` |
 | `tests/` | Testes unitários das DAGs |
 
 **Convenção de tags:** [DAG_TAGS.md](DAG_TAGS.md)
@@ -32,7 +32,7 @@ pip install -r airflow/requirements-cosmos.txt
 
 | DAG / arquivo | Papel |
 |---------------|--------|
-| `orchestration/bronze/*_dag.py` | Bronze por entidade, `schedule=[Dataset]`, **Cosmos** `DbtTaskGroup` |
+| `orchestration/bronze/*_dag.py` | Bronze por entidade, `schedule=[Dataset]`, **`dbt run`** via Bash (`bronze_stream_dbt`, pool `bronze_stream`) |
 | `bronze_dbt_task_group_all.py` | `path:models/bronze` — lote; só batch / manual; **pausada** por padrão |
 | `silver_dbt_task_group_all.py` | `path:models/silver` |
 | `silver_context_dbt_task_group_all.py` | `path:models/silver_context` |
@@ -44,10 +44,17 @@ Pool recomendado na UI Airflow: **`spark_dbt`** (slots conforme capacidade Kyuub
 
 Variáveis úteis: `DBT_PROJECT_DIR`, `DBT_PROFILES_DIR`, `DBT_TARGET` (target do `profiles.yml`).
 
+## Pools, filas Celery e workers
+
+- **Cosmos** (`common/cosmos_dbt.py`): **`pool=spark_dbt`**, **`queue=dbt`** → `airflow-worker-dbt` (silver, silver_context, `bronze_dbt_task_group_all`, …).
+- **Bronze por dataset** (`bronze_tasy_*`): **`pool=bronze_stream`**, **`queue=default`**, um `dbt run` por DAG (`common/bronze_stream_dbt.py`) — paralelismo sem Cosmos.
+- Tasks leves (streaming, triggers): fila **default**.
+- Guia: **[`docs/AIRFLOW_OPERACAO.md`](docs/AIRFLOW_OPERACAO.md)**.
+
 ## Fluxo
 
 1. **streaming** → emite **Dataset** por tópico quando há evento no S3 raw.
-2. **orchestration/bronze/** → Cosmos roda `bronze_tasy_*` por dataset.
+2. **orchestration/bronze/** → DAGs `bronze_tasy_*` rodam **`dbt run`** por modelo (Bash, pool `bronze_stream`); **`bronze_dbt_task_group_all`** e camadas silver+ usam **Cosmos**.
 3. **master_dbt_orchestrator_stream** → silver → silver_context (gold quando ativado).
 4. **master_dbt_orchestrator_batch** → opcional CLI com vars → bronze all → silver → …
-5. **delivery** → consumo downstream (ex.: FHIR).
+5. **delivery** → consumo downstream (ex.: FHIR / HAPI).
