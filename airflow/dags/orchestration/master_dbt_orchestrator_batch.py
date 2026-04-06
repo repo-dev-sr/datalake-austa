@@ -2,7 +2,10 @@
 Orquestrador operacional (agendado): a cada hora processa o lakehouse na ordem canônica.
 
 Fluxo padrão (sem config): bronze (todos) → silver → silver_context [→ gold quando ativado].
-Opcional: passo extra de `dbt run` com --vars antes do bronze (reprocesso / janela CDC customizada).
+Executa `dbt run` por camada nesta própria DAG (sem TriggerDagRun), evitando DagNotFound se as
+DAGs Cosmos (`*_dbt_task_group_all`) estiverem quebradas ou ausentes no parse.
+
+Opcional: passo extra de `dbt run` com --vars antes do bronze (reprocesso / janela CDC).
 """
 from datetime import timedelta
 
@@ -11,10 +14,10 @@ from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 
+from common.bronze_stream_dbt import bronze_dbt_run_env
 from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_TARGET
 from common.default_args import DEFAULT_ARGS
 
@@ -43,23 +46,30 @@ def _pick_cli_branch(**context):
 
 
 _DBT_CLI_PREFIX = (
-    f"cd {DBT_PROJECT_DIR} && PYTHONPATH={DBT_PROJECT_DIR}/plugins dbt run "
+    f"cd {DBT_PROJECT_DIR} && dbt run "
     f"--profile {DBT_PROFILE_NAME} --target {DBT_TARGET} "
 )
+
+
+def _dbt_run_layer_bash(select_path: str) -> str:
+    """Comando único dbt run para uma camada (path:models/...)."""
+    return (
+        f"cd {DBT_PROJECT_DIR} && dbt run --select {select_path} "
+        f"--profile {DBT_PROFILE_NAME} --target {DBT_TARGET}"
+    )
+
 
 _MASTER_DOC_MD = """
 ## Execução normal (rotina)
 
-- **Trigger manual sem JSON** ou com `{}` → segue o mesmo fluxo do agendamento: dispara **bronze all → silver → silver_context**.
+- **Trigger manual sem JSON** ou com `{}` → **bronze → silver → silver_context** via `dbt run` nesta DAG (sem depender de outras DAGs).
 - Não é obrigatório preencher nada no formulário de parâmetros.
-- A task `skip_cli_before_triggers` **só pula o passo opcional** `dbt run` na CLI; **não** pula bronze/silver/silver_context (isso exige `trigger_rule` especial após o branch — já configurado na DAG).
+- A task `skip_cli_before_triggers` **só pula o passo opcional** `dbt run` com `--vars`; **não** pula as camadas principais.
 
 ## Reprocessamento / janela CDC (opcional)
 
-1. Marque **`run_cli_first`** = `True` (ou no JSON de conf abaixo).
+1. Marque **`run_cli_first`** = `True` (ou no JSON de conf).
 2. Ajuste **`cdc_lookback_hours`** / **`cdc_reprocess_hours`** e, se precisar, **`dbt_select`** (default: `path:models/bronze`).
-
-Exemplo de **JSON Configuration** ao disparar o DAG:
 
 ```json
 {
@@ -70,13 +80,15 @@ Exemplo de **JSON Configuration** ao disparar o DAG:
 }
 ```
 
-As DAGs Cosmos (bronze/silver/silver_context) continuam usando os defaults do `dbt_project.yml`, salvo o passo CLI opcional acima.
+## DAGs Cosmos (`bronze_dbt_task_group_all`, etc.)
+
+Continuam disponíveis para execução manual com **uma task por modelo** na UI, quando o parse (Cosmos/dbt) estiver saudável. O master **não** as dispara.
 """
 
 
 @dag(
     dag_id="master_dbt_orchestrator_batch",
-    description="Lakehouse: bronze all → silver → silver_context (1h ou manual); parâmetros só para reprocesso opcional",
+    description="Lakehouse: dbt bronze → silver → silver_context (1h ou manual); sem trigger de DAGs filhas",
     schedule=timedelta(hours=1),
     start_date=days_ago(1),
     catchup=False,
@@ -89,27 +101,27 @@ As DAGs Cosmos (bronze/silver/silver_context) continuam usando os defaults do `d
             type="boolean",
             title="Rodar dbt CLI antes do bronze",
             description=(
-                "Desligado = fluxo padrão (só triggers Cosmos). "
-                "Ligado = um `dbt run` com --vars (CDC) antes de bronze/silver/silver_context."
+                "Desligado = vai direto ao `dbt run` da camada bronze (e depois silver/silver_context). "
+                "Ligado = um `dbt run` extra com --vars (CDC) antes do bronze."
             ),
         ),
         "dbt_select": Param(
             "path:models/bronze",
             type="string",
-            title="dbt --select (só com CLI)",
-            description="Seleção dbt usada apenas quando 'Rodar dbt CLI antes do bronze' está ligado.",
+            title="dbt --select (só com CLI opcional)",
+            description="Usado apenas quando 'Rodar dbt CLI antes do bronze' está ligado.",
         ),
         "cdc_lookback_hours": Param(
             2,
             type="integer",
             title="cdc_lookback_hours",
-            description="Só afeta o passo CLI opcional (--vars). Rotina Cosmos usa `dbt_project.yml`.",
+            description="Só afeta o passo CLI opcional com --vars.",
         ),
         "cdc_reprocess_hours": Param(
             0,
             type="integer",
             title="cdc_reprocess_hours",
-            description="Só afeta o passo CLI opcional (--vars).",
+            description="Só afeta o passo CLI opcional com --vars.",
         ),
     },
     tags=["orchestrator", "batch", "lakehouse", "dbt", "hourly", "scheduled"],
@@ -124,6 +136,7 @@ def master_dbt_orchestrator_batch_dag():
         task_id="dbt_run_with_vars",
         pool="spark_dbt",
         queue="dbt",
+        env=bronze_dbt_run_env(),
         bash_command=(
             _DBT_CLI_PREFIX
             + "--select '{{ params.dbt_select or \"path:models/bronze\" }}' "
@@ -132,44 +145,43 @@ def master_dbt_orchestrator_batch_dag():
         ),
     )
 
-    trigger_bronze_all = TriggerDagRunOperator(
-        task_id="trigger_bronze_dbt_task_group_all",
-        trigger_dag_id="bronze_dbt_task_group_all",
-        wait_for_completion=True,
-        poke_interval=30,
-        reset_dag_run=False,
-        # Após branch: um upstream fica skipped; all_success faria pular o trigger inteiro.
+    dbt_bronze_layer = BashOperator(
+        task_id="dbt_bronze_layer",
+        pool="spark_dbt",
+        queue="dbt",
+        env=bronze_dbt_run_env(),
+        bash_command=_dbt_run_layer_bash("path:models/bronze"),
         trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     )
-    trigger_silver = TriggerDagRunOperator(
-        task_id="trigger_silver_dbt_task_group_all",
-        trigger_dag_id="silver_dbt_task_group_all",
-        wait_for_completion=True,
-        poke_interval=30,
-        reset_dag_run=False,
+    dbt_silver_layer = BashOperator(
+        task_id="dbt_silver_layer",
+        pool="spark_dbt",
+        queue="dbt",
+        env=bronze_dbt_run_env(),
+        bash_command=_dbt_run_layer_bash("path:models/silver"),
     )
-    trigger_silver_context = TriggerDagRunOperator(
-        task_id="trigger_silver_context_dbt_task_group_all",
-        trigger_dag_id="silver_context_dbt_task_group_all",
-        wait_for_completion=True,
-        poke_interval=30,
-        reset_dag_run=False,
+    dbt_silver_context_layer = BashOperator(
+        task_id="dbt_silver_context_layer",
+        pool="spark_dbt",
+        queue="dbt",
+        env=bronze_dbt_run_env(),
+        bash_command=_dbt_run_layer_bash("path:models/silver_context"),
     )
 
     branch >> [skip_cli, dbt_run_with_vars]
-    skip_cli >> trigger_bronze_all
-    dbt_run_with_vars >> trigger_bronze_all
-    trigger_bronze_all >> trigger_silver >> trigger_silver_context
+    skip_cli >> dbt_bronze_layer
+    dbt_run_with_vars >> dbt_bronze_layer
+    dbt_bronze_layer >> dbt_silver_layer >> dbt_silver_context_layer
 
-    # GOLD_LAYER_TODO — descomente quando gold_dbt_task_group_all.py estiver ativo:
-    # trigger_gold = TriggerDagRunOperator(
-    #     task_id="trigger_gold_dbt_task_group_all",
-    #     trigger_dag_id="gold_dbt_task_group_all",
-    #     wait_for_completion=True,
-    #     poke_interval=120,
-    #     reset_dag_run=False,
+    # GOLD_LAYER_TODO — quando gold existir:
+    # dbt_gold_layer = BashOperator(
+    #     task_id="dbt_gold_layer",
+    #     pool="spark_dbt",
+    #     queue="dbt",
+    #     env=bronze_dbt_run_env(),
+    #     bash_command=_dbt_run_layer_bash("path:models/gold"),
     # )
-    # trigger_silver_context >> trigger_gold
+    # dbt_silver_context_layer >> dbt_gold_layer
 
 
 master_dbt_orchestrator_batch_dag()
