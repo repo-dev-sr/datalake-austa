@@ -27,14 +27,14 @@ def master_dbt_orchestrator_stream_dag():
         task_id="trigger_silver_dbt_task_group_all",
         trigger_dag_id="silver_dbt_task_group_all",
         wait_for_completion=True,
-        poke_interval=60,
+        poke_interval=15,
         reset_dag_run=False,
     )
     trigger_silver_context = TriggerDagRunOperator(
         task_id="trigger_silver_context_dbt_task_group_all",
         trigger_dag_id="silver_context_dbt_task_group_all",
         wait_for_completion=True,
-        poke_interval=60,
+        poke_interval=15,
         reset_dag_run=False,
     )
     trigger_silver >> trigger_silver_context

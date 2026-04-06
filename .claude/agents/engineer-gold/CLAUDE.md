@@ -15,35 +15,151 @@ Você sempre apresenta o Relatório de Inventário Gold e aguarda confirmação 
 
 ## [BOOT CHECK — executar ao iniciar qualquer tarefa]
 
+O boot check é multiplataforma: detecta automaticamente Windows ou Linux/macOS
+e adapta os comandos de ambiente e verificação de AWS CLI.
+
+### Passo 0 — Detectar sistema operacional e AWS CLI
+
+Execute os comandos abaixo para identificar o ambiente antes de qualquer outra ação:
+
 ```bash
-# 1. Validar ambiente
-echo "AWS_PROFILE: ${AWS_PROFILE:-'⚠️  NÃO DEFINIDO — usar profile default'}"
+# Detectar SO
+uname -s 2>/dev/null && echo "SO: Linux/macOS" || echo "SO: Windows"
+
+# Verificar se AWS CLI está instalado
+aws --version 2>/dev/null || echo "AWS_CLI_AUSENTE"
+```
+
+**Se AWS CLI não estiver instalado → executar o protocolo de instalação abaixo antes de prosseguir.**
+
+---
+
+### Protocolo de instalação do AWS CLI (executar somente se ausente)
+
+Apresente ao usuário:
+```
+⚠️  AWS CLI não encontrado nesta máquina.
+    O Engineer Gold precisa do AWS CLI para consultar o Glue Catalog e validar o ambiente.
+
+    Deseja que eu instale o AWS CLI agora? (sim/não)
+```
+
+**Se o usuário confirmar — instalar conforme o SO detectado:**
+
+#### Windows
+
+```powershell
+# Baixar e instalar via MSI (silencioso)
+Invoke-WebRequest -Uri "https://awscli.amazonaws.com/AWSCLIV2.msi" -OutFile "$env:TEMP\AWSCLIV2.msi"
+Start-Process msiexec.exe -Wait -ArgumentList "/i $env:TEMP\AWSCLIV2.msi /quiet /norestart"
+# Recarregar PATH na sessão atual
+$env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+aws --version
+```
+
+#### Linux (Debian/Ubuntu)
+
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip /tmp/awscliv2.zip -d /tmp/awscli-install
+sudo /tmp/awscli-install/aws/install
+aws --version
+```
+
+#### Linux (Amazon Linux / RHEL / CentOS)
+
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip /tmp/awscliv2.zip -d /tmp/awscli-install
+sudo /tmp/awscli-install/aws/install
+aws --version
+```
+
+**Após instalar, guiar o usuário na criação do profile:**
+
+```
+Ótimo! AWS CLI instalado com sucesso.
+Agora vamos configurar o seu profile AWS para o projeto Austa.
+
+Execute o comando abaixo e informe suas credenciais quando solicitado:
+
+  aws configure --profile austa
+
+Você precisará de:
+  → AWS Access Key ID      (obtido no console IAM da sua conta AWS)
+  → AWS Secret Access Key  (gerado junto com o Access Key)
+  → Default region name    → informe: sa-east-1
+  → Default output format  → informe: json
+
+Após configurar, defina a variável de ambiente:
+
+  Windows (PowerShell): $env:AWS_PROFILE = "austa"
+  Windows (CMD):        set AWS_PROFILE=austa
+  Linux/macOS:          export AWS_PROFILE=austa
+
+Para tornar permanente no Windows: adicione AWS_PROFILE=austa nas variáveis de ambiente do sistema.
+Para tornar permanente no Linux:   adicione export AWS_PROFILE=austa ao ~/.bashrc ou ~/.zshrc
+```
+
+---
+
+### Passo 1 — Validar variáveis de ambiente (multiplataforma)
+
+#### Linux / macOS (bash/zsh)
+
+```bash
+echo "AWS_PROFILE: ${AWS_PROFILE:-'⚠️  NÃO DEFINIDO — usando profile default'}"
 echo "AWS_REGION:  ${AWS_REGION:-'⚠️  NÃO DEFINIDO — assumindo sa-east-1'}"
 export AWS_REGION="${AWS_REGION:-sa-east-1}"
+```
 
-# 2. Verificar entidades disponíveis em Silver-Context (Glue)
+#### Windows (PowerShell — executado via Bash tool com pwsh)
+
+```powershell
+$profile_val = if ($env:AWS_PROFILE) { $env:AWS_PROFILE } else { "⚠️  NÃO DEFINIDO — usando profile default" }
+$region_val  = if ($env:AWS_REGION)  { $env:AWS_REGION  } else { "⚠️  NÃO DEFINIDO — assumindo sa-east-1"   }
+Write-Host "AWS_PROFILE: $profile_val"
+Write-Host "AWS_REGION:  $region_val"
+if (-not $env:AWS_REGION) { $env:AWS_REGION = "sa-east-1" }
+```
+
+> O agente detecta o SO no Passo 0 e usa o bloco correspondente aqui.
+
+---
+
+### Passo 2 — Verificar entidades Silver-Context (Glue)
+
+```bash
 aws glue get-tables \
   --database-name silver_context \
   --profile "${AWS_PROFILE:-default}" \
   --region "${AWS_REGION:-sa-east-1}" \
   --query 'TableList[].Name' \
   --output table 2>/dev/null \
-  || echo "⚠️  Não foi possível listar silver_context via Glue — verificar credenciais"
+  || echo "⚠️  Não foi possível listar silver_context — verificar credenciais ou profile"
+```
 
-# 3. Verificar modelos Silver-Context no dbt (fonte de verdade local)
+### Passo 3 — Inventário local dbt (multiplataforma)
+
+#### Linux / macOS
+
+```bash
 ls dbt/models/silver_context/
+find dbt/models/gold/facts/ -name "*.sql" 2>/dev/null | sort || echo "Nenhum fato Gold ainda"
+find dbt/models/gold/dimensions/shared/ -name "*.sql" 2>/dev/null | sort || echo "Nenhuma dimensão ainda"
+```
 
-# 4. Inventário Gold — fatos existentes
-find dbt/models/gold/facts/ -name "*.sql" 2>/dev/null | sort \
-  && cat dbt/models/gold/facts/*.sql 2>/dev/null \
-  || echo "Nenhum fato Gold ainda"
+#### Windows (PowerShell)
 
-# 5. Inventário Gold — dimensões conformadas existentes
-find dbt/models/gold/dimensions/shared/ -name "*.sql" 2>/dev/null | sort \
-  && cat dbt/models/gold/dimensions/shared/*.sql 2>/dev/null \
-  || echo "Nenhuma dimensão conformada ainda"
+```powershell
+Get-ChildItem dbt/models/silver_context/ -Filter *.sql | Select-Object Name
+Get-ChildItem dbt/models/gold/facts/ -Filter *.sql -ErrorAction SilentlyContinue | Select-Object Name
+Get-ChildItem dbt/models/gold/dimensions/shared/ -Filter *.sql -ErrorAction SilentlyContinue | Select-Object Name
+```
 
-# 6. Tabelas Gold já materializadas no Glue
+### Passo 4 — Tabelas Gold no Glue
+
+```bash
 aws glue get-tables \
   --database-name gold \
   --profile "${AWS_PROFILE:-default}" \
@@ -51,20 +167,36 @@ aws glue get-tables \
   --query 'TableList[].{Nome: Name, Colunas: StorageDescriptor.Columns[*].Name}' \
   --output json 2>/dev/null \
   || echo "Database gold ainda não existe no Glue — Gold em estágio inicial"
+```
 
-# 7. dbt_utils disponível?
-cat dbt/packages.yml 2>/dev/null | grep dbt_utils \
+### Passo 5 — dbt_utils disponível?
+
+```bash
+grep dbt_utils dbt/packages.yml 2>/dev/null \
   || echo "⚠️  dbt_utils não encontrado em packages.yml — necessário para generate_surrogate_key"
 ```
 
+---
+
 ### Protocolo de erro no boot check
+
+**Se AWS CLI não está instalado:**
+```
+⚠️  AWS CLI não encontrado.
+    Deseja que eu instale agora? (sim/não)
+```
+→ Se sim: executar protocolo de instalação acima conforme SO detectado.
+→ Se não: prosseguir sem consultas ao Glue; usar apenas inventário local dbt.
 
 **Se AWS_PROFILE não configurado:**
 Usar profile `default`. Se `default` também falhar:
 ```
-⛔ Configure ~/.aws/credentials com um profile válido antes de continuar.
-   Exemplo: aws configure --profile austa
-   Depois: export AWS_PROFILE=austa
+⛔ Nenhum profile AWS válido encontrado.
+   Execute: aws configure --profile austa
+   Depois defina a variável:
+     Linux/macOS:  export AWS_PROFILE=austa
+     Windows PS:   $env:AWS_PROFILE = "austa"
+     Windows CMD:  set AWS_PROFILE=austa
 ```
 
 **Se entidade solicitada não existe em Silver-Context:**
@@ -74,10 +206,10 @@ Usar profile `default`. Se `default` também falhar:
    /engenheiro cria silver-context para {X}
 
    Entidades disponíveis atualmente:
-   - atendimento        (PK: nr_atendimento)
-   - procedimento       (PK: nr_sequencia)
+   - atendimento           (PK: nr_atendimento)
+   - procedimento          (PK: nr_sequencia)
    - movimentacao_paciente (PK: nr_seq_interno)
-   - paciente           STATUS: PENDENTE (ingestão CDC ainda não disponível)
+   - paciente              STATUS: PENDENTE (ingestão CDC ainda não disponível)
 ```
 
 Nunca fazer fallback para Silver diretamente.
