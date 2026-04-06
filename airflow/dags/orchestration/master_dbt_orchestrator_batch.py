@@ -8,6 +8,7 @@ DAGs Cosmos (`*_dbt_task_group_all`) estiverem quebradas ou ausentes no parse.
 Opcional: passo extra de `dbt run` com --vars antes do bronze (reprocesso / janela CDC).
 """
 from datetime import timedelta
+from pathlib import Path
 
 from airflow.decorators import dag
 from airflow.models.param import Param
@@ -18,7 +19,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 
 from common.bronze_stream_dbt import bronze_dbt_run_env
-from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_TARGET
+from common.config import DBT_PROFILE_NAME, DBT_PROFILES_DIR, DBT_PROJECT_DIR, DBT_TARGET
 from common.default_args import DEFAULT_ARGS
 
 
@@ -45,8 +46,11 @@ def _pick_cli_branch(**context):
     return "skip_cli_before_triggers"
 
 
+_DBT_PROFILES_ARG = str(Path(DBT_PROFILES_DIR).resolve())
+
 _DBT_CLI_PREFIX = (
     f"cd {DBT_PROJECT_DIR} && dbt run "
+    f"--profiles-dir {_DBT_PROFILES_ARG} "
     f"--profile {DBT_PROFILE_NAME} --target {DBT_TARGET} "
 )
 
@@ -55,6 +59,7 @@ def _dbt_run_layer_bash(select_path: str) -> str:
     """Comando único dbt run para uma camada (path:models/...)."""
     return (
         f"cd {DBT_PROJECT_DIR} && dbt run --select {select_path} "
+        f"--profiles-dir {_DBT_PROFILES_ARG} "
         f"--profile {DBT_PROFILE_NAME} --target {DBT_TARGET}"
     )
 
