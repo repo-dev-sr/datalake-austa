@@ -1,7 +1,12 @@
 """
 Configuração compartilhada para DAGs Astronomer Cosmos + dbt-spark (lakehouse Tasy).
 
-LoadMode.DBT_LS: descoberta de nós via `dbt ls` no parse da DAG (evoluir para DBT_MANIFEST no deploy).
+LoadMode.DBT_LS: descoberta de nós via `dbt ls` no parse da DAG — não exige `target/manifest.json`
+no scheduler (evita Broken DAG quando o artefato ainda não foi gerado no volume).
+
+Para usar manifest pré-gerado (CI/imagem), volte a `LoadMode.DBT_MANIFEST` e defina
+`ProjectConfig(manifest_path=...)` apontando para um arquivo existente.
+
 DbtTaskGroup: use `from cosmos import DbtTaskGroup` (reexport do pacote cosmos).
 """
 from __future__ import annotations
@@ -20,11 +25,21 @@ from common.config import DBT_PROJECT_DIR, DBT_PROFILES_DIR
 logger = logging.getLogger(__name__)
 
 
+def _pythonpath_with_dbt_plugins() -> dict[str, str]:
+    """PYTHONPATH com `dbt/plugins` — necessário no parse (`dbt ls`) e na execução."""
+    project_path = Path(DBT_PROJECT_DIR).resolve()
+    plugins = str(project_path / "plugins")
+    prev = os.environ.get("PYTHONPATH", "")
+    return {
+        "PYTHONPATH": f"{plugins}{os.pathsep}{prev}" if prev else plugins,
+    }
+
+
 def get_project_config() -> ProjectConfig:
     project_path = Path(DBT_PROJECT_DIR).resolve()
     return ProjectConfig(
         dbt_project_path=str(project_path),
-        manifest_path=str(project_path / "target" / "manifest.json"),
+        env_vars=_pythonpath_with_dbt_plugins(),
     )
 
 
@@ -59,7 +74,7 @@ def get_profile_config() -> ProfileConfig:
 
 def render_config_for_select(select: list[str]) -> RenderConfig:
     return RenderConfig(
-        load_method=LoadMode.DBT_MANIFEST,
+        load_method=LoadMode.DBT_LS,
         select=select,
     )
 
@@ -73,9 +88,7 @@ def dbt_operator_args() -> Dict[str, Any]:
     - **queue** `dbt`: encaminha para o worker Celery `airflow-worker-dbt` (Compose EC2).
     """
     merged = os.environ.copy()
-    plugins = str(Path(DBT_PROJECT_DIR).resolve() / "plugins")
-    prev = merged.get("PYTHONPATH", "")
-    merged["PYTHONPATH"] = f"{plugins}{os.pathsep}{prev}" if prev else plugins
+    merged.update(_pythonpath_with_dbt_plugins())
     return {
         "install_deps": True,
         "pool": "spark_dbt",
