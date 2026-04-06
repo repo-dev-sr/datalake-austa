@@ -1,9 +1,11 @@
 """
-Orquestrador batch: backfill / reprocessamento (bronze all → silver → silver_context [→ gold]).
+Orquestrador operacional (agendado): a cada hora processa o lakehouse na ordem canônica.
 
-- Agendamento: a cada 1 hora (bronze all → silver → silver_context).
-- Cadeia principal: triggers com wait_for_completion.
-- Opcional: `run_cli_first=true` no conf do DagRun (ou param) para rodar `dbt run` com --vars antes dos triggers.
+Fluxo: bronze (todos os modelos) → silver → silver_context [→ gold quando ativado].
+Serve para incorporar dados que chegaram no raw desde a última janela CDC — não é só manutenção/backfill.
+
+- `schedule`: 1 hora.
+- Opcional: `run_cli_first=true` no conf/param para um `dbt run` CLI com --vars antes dos triggers (ex.: pré-aquecer bronze com janela CDC).
 """
 from datetime import timedelta
 
@@ -14,7 +16,7 @@ from airflow.operators.python import BranchPythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.dates import days_ago
 
-from common.config import DBT_PROJECT_DIR
+from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_TARGET
 from common.default_args import DEFAULT_ARGS
 
 
@@ -27,21 +29,23 @@ def _pick_cli_branch(**context):
 
 @dag(
     dag_id="master_dbt_orchestrator_batch",
-    description="Orquestrador batch: bronze all → silver → silver_context [→ gold]; opcional dbt CLI com vars",
+    description="Lakehouse horário: bronze all → silver → silver_context; dados novos a cada 1h",
     schedule=timedelta(hours=1),
     start_date=days_ago(1),
     catchup=False,
-    is_paused_upon_creation=True,
+    is_paused_upon_creation=False,
     default_args=DEFAULT_ARGS,
     params={
         "run_cli_first": False,
         "dbt_project_dir": DBT_PROJECT_DIR,
         "dbt_plugins": f"{DBT_PROJECT_DIR}/plugins",
+        "dbt_profile_name": DBT_PROFILE_NAME,
+        "dbt_target": DBT_TARGET,
         "dbt_select": "path:models/bronze",
         "cdc_lookback_hours": 2,
         "cdc_reprocess_hours": 0,
     },
-    tags=["orchestrator", "batch", "lakehouse", "dbt"],
+    tags=["orchestrator", "batch", "lakehouse", "dbt", "hourly", "scheduled"],
 )
 def master_dbt_orchestrator_batch_dag():
     branch = BranchPythonOperator(
@@ -55,9 +59,10 @@ def master_dbt_orchestrator_batch_dag():
         queue="dbt",
         bash_command=(
             "cd {{ params.dbt_project_dir }} && PYTHONPATH={{ params.dbt_plugins }} "
-            "dbt run --select {{ params.dbt_select }} "
-            '--vars \'{"cdc_lookback_hours": {{ params.cdc_lookback_hours }}, '
-            '"cdc_reprocess_hours": {{ params.cdc_reprocess_hours }}}}\''
+            "dbt run --select '{{ params.dbt_select or \"path:models/bronze\" }}' "
+            "--profile {{ params.dbt_profile_name }} --target {{ params.dbt_target }} "
+            "--vars '{{ dict(cdc_lookback_hours=params.cdc_lookback_hours, "
+            "cdc_reprocess_hours=params.cdc_reprocess_hours) | tojson }}'"
         ),
     )
 

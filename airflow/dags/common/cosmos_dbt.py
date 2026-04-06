@@ -20,7 +20,7 @@ from cosmos import DbtTaskGroup
 from cosmos.config import ProfileConfig, ProjectConfig, RenderConfig
 from cosmos.constants import LoadMode
 
-from common.config import DBT_PROJECT_DIR, DBT_PROFILES_DIR
+from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_PROFILES_DIR, DBT_TARGET
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def get_project_config() -> ProjectConfig:
 
 
 def get_profile_config() -> ProfileConfig:
-    target = os.environ.get("DBT_TARGET", "dev")
+    target = DBT_TARGET
     profiles_dir = Path(DBT_PROFILES_DIR).resolve()
     profiles_yml = profiles_dir / "profiles.yml"
     profiles_example = profiles_dir / "profiles.yml.example"
@@ -73,7 +73,7 @@ def get_profile_config() -> ProfileConfig:
         )
 
     return ProfileConfig(
-        profile_name="lakehouse_tasy",
+        profile_name=DBT_PROFILE_NAME,
         target_name=target,
         profiles_yml_filepath=str(profiles_yml),
     )

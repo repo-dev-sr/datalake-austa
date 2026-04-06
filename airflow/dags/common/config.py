@@ -19,3 +19,6 @@ SPARK_THRIFT_PASSWORD = os.environ.get("SPARK_THRIFT_PASSWORD", "")
 # dbt
 DBT_PROJECT_DIR = os.environ.get("DBT_PROJECT_DIR", "/opt/airflow/dbt")
 DBT_PROFILES_DIR = os.environ.get("DBT_PROFILES_DIR", "/opt/airflow/dbt")
+# Chave do profile em profiles.yml (no servidor pode ser diferente do local; ex.: conn_id do deploy)
+DBT_PROFILE_NAME = os.environ.get("DBT_PROFILE_NAME", "lakehouse_tasy")
+DBT_TARGET = os.environ.get("DBT_TARGET", "dev")

@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from common.config import DBT_PROJECT_DIR
+from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_TARGET
 
 # Alinhar slots no Airflow (airflow-init / UI) ao volume de eventos e RAM do airflow-worker.
 BRONZE_STREAM_POOL = "bronze_stream"
@@ -27,4 +27,7 @@ def bronze_dbt_run_env() -> dict[str, str]:
 
 
 def bash_dbt_run_select(model: str) -> str:
-    return f"cd {DBT_PROJECT_DIR} && dbt run --select {model}"
+    return (
+        f"cd {DBT_PROJECT_DIR} && dbt run --select {model} "
+        f"--profile {DBT_PROFILE_NAME} --target {DBT_TARGET}"
+    )
