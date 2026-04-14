@@ -16,6 +16,12 @@ SPARK_THRIFT_URL = os.environ.get("SPARK_THRIFT_URL", "jdbc:hive2://177.71.255.1
 SPARK_THRIFT_USER = os.environ.get("SPARK_THRIFT_USER", "")
 SPARK_THRIFT_PASSWORD = os.environ.get("SPARK_THRIFT_PASSWORD", "")
 
+# PySpark (spark-submit remoto na EC2 Spark — SSH a partir do worker Airflow)
+SPARK_SSH_USER = os.environ.get("SPARK_SSH_USER", "ec2-user")
+SPARK_SSH_KEY = os.environ.get("SPARK_SSH_KEY", "/opt/airflow/ssh/spark.pem")
+SPARK_SCRIPTS_DIR = os.environ.get("SPARK_SCRIPTS_DIR", "/opt/spark/lakehouse")
+SPARK_SUBMIT_BIN = os.environ.get("SPARK_SUBMIT_BIN", "/opt/spark/bin/spark-submit")
+
 # dbt
 DBT_PROJECT_DIR = os.environ.get("DBT_PROJECT_DIR", "/opt/airflow/dbt")
 DBT_PROFILES_DIR = os.environ.get("DBT_PROFILES_DIR", "/opt/airflow/dbt")

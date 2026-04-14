@@ -1,7 +1,8 @@
 """
-dbt via BashOperator no worker Celery: PATH mínimo, executável explícito, DBT_PROFILES_DIR.
+dbt em BashOperator no worker Celery.
 
-O Airflow costuma invocar bash sem login; PATH pode vir vazio ou sem ~/.local/bin.
+BashOperator(env=...) substitui o ambiente do worker (append_env=False por padrão) e o dict
+costuma ser resolvido no parse — sem SPARK_THRIFT_* do container. Usar export no bash.
 """
 from __future__ import annotations
 
@@ -24,36 +25,54 @@ def dbt_executable_path() -> str:
     return f"{_AIRFLOW_LOCAL_BIN}/dbt"
 
 
-def dbt_subprocess_env() -> dict[str, str]:
-    env = dict(os.environ)
-    plugins = str(Path(DBT_PROJECT_DIR).resolve() / "plugins")
-    prev_py = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = f"{plugins}{os.pathsep}{prev_py}" if prev_py else plugins
-    env["DBT_PROFILES_DIR"] = str(Path(DBT_PROFILES_DIR).resolve())
-    path = env.get("PATH", "") or ""
-    parts = path.split(os.pathsep) if path else []
-    if _AIRFLOW_LOCAL_BIN not in parts:
-        env["PATH"] = f"{_AIRFLOW_LOCAL_BIN}{os.pathsep}{path}" if path else _AIRFLOW_LOCAL_BIN
-    return env
+def proj_quote(path: str) -> str:
+    p = str(Path(path).resolve())
+    if "'" in p:
+        return f'"{p}"'
+    return f"'{p}'"
+
+
+def dbt_shell_preamble() -> str:
+    prof = str(Path(DBT_PROFILES_DIR).resolve())
+    plug = str(Path(DBT_PROJECT_DIR).resolve() / "plugins")
+    return (
+        f'export DBT_PROFILES_DIR="{prof}"; '
+        f'export PYTHONPATH="{plug}${{PYTHONPATH:+:$PYTHONPATH}}"; '
+        f'export PATH="{_AIRFLOW_LOCAL_BIN}${{PATH:+:$PATH}}"; '
+    )
+
+
+def dbt_fail_tail() -> str:
+    return (
+        '|| { echo "=== dbt.log (tail) ==="; '
+        'tail -n 200 "$_L/dbt.log" 2>/dev/null || true; exit 1; }'
+    )
 
 
 def dbt_run_command(*, select: str, extra_args: str = "") -> str:
-    """cd projeto + dbt run (profiles-dir, profile, target)."""
     profiles = str(Path(DBT_PROFILES_DIR).resolve())
     exe = dbt_executable_path()
     tail = f" {extra_args}" if extra_args.strip() else ""
     return (
-        f"cd {DBT_PROJECT_DIR} && {exe} run --select {select} "
-        f"--profiles-dir {profiles} --profile {DBT_PROFILE_NAME} --target {DBT_TARGET}{tail}"
+        f"{dbt_shell_preamble()}"
+        f"_L=/tmp/dbt_af_$$; mkdir -p \"$_L\"; "
+        f"cd {proj_quote(DBT_PROJECT_DIR)} && "
+        f"{exe} run --no-use-colors --log-path \"$_L\" --select {select} "
+        f"--profiles-dir {profiles} --profile {DBT_PROFILE_NAME} --target {DBT_TARGET}{tail} "
+        f"{dbt_fail_tail()}"
     )
 
 
 def dbt_deps_then_run_command(*, select: str, extra_args: str = "") -> str:
-    """deps (idempotente) antes do run — necessário se dbt_packages estiver vazio no volume."""
     profiles = str(Path(DBT_PROFILES_DIR).resolve())
     exe = dbt_executable_path()
     tail = f" {extra_args}" if extra_args.strip() else ""
     return (
-        f"cd {DBT_PROJECT_DIR} && {exe} deps --profiles-dir {profiles} && {exe} run --select {select} "
-        f"--profiles-dir {profiles} --profile {DBT_PROFILE_NAME} --target {DBT_TARGET}{tail}"
+        f"{dbt_shell_preamble()}"
+        f"_L=/tmp/dbt_af_$$; mkdir -p \"$_L\"; "
+        f"cd {proj_quote(DBT_PROJECT_DIR)} && "
+        f"{exe} deps --profiles-dir {profiles} && "
+        f"{exe} run --no-use-colors --log-path \"$_L\" --select {select} "
+        f"--profiles-dir {profiles} --profile {DBT_PROFILE_NAME} --target {DBT_TARGET}{tail} "
+        f"{dbt_fail_tail()}"
     )

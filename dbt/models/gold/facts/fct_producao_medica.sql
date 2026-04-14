@@ -40,6 +40,12 @@ WITH source AS (
         , {{ dbt_utils.generate_surrogate_key(['cd_procedimento']) }}            AS sk_procedimento
         , {{ dbt_utils.generate_surrogate_key(['cd_convenio']) }}                AS sk_convenio
 
+        -- sk_cid: NULL quando procedimento não possui CID informado (cd_doenca_cid = -1)
+        , CASE
+              WHEN cd_doenca_cid = -1 THEN NULL
+              ELSE {{ dbt_utils.generate_surrogate_key(['cd_doenca_cid']) }}
+          END                                                                    AS sk_cid
+
         -- ── Natural keys preservadas ─────────────────────────────────────────────
         , nr_sequencia                                                            AS nk_sequencia_procedimento
         , nr_atendimento                                                         AS nk_atendimento
@@ -48,6 +54,7 @@ WITH source AS (
         , cd_medico_executor                                                     AS nk_medico_executor
         , cd_procedimento                                                        AS nk_procedimento
         , cd_convenio                                                            AS nk_convenio
+        , NULLIF(cd_doenca_cid, -1)                                             AS nk_cid
 
         -- ── Dimensões degeneradas (sem tabela própria) ───────────────────────────
         , atend_ie_tipo_atendimento

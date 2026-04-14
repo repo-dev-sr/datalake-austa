@@ -9,11 +9,7 @@ if False:
     from airflow.operators.bash import BashOperator
     from airflow.utils.dates import days_ago
 
-    from common.bronze_stream_dbt import (
-        BRONZE_STREAM_POOL,
-        bash_dbt_run_select,
-        bronze_dbt_run_env,
-    )
+    from common.bronze_stream_dbt import BRONZE_STREAM_POOL, bash_dbt_run_select
     from common.constants import get_dataset_for_topic
     from common.default_args import DEFAULT_ARGS
 
@@ -37,7 +33,6 @@ if False:
             task_id="run_bronze_tasy_conta_paciente",
             pool=BRONZE_STREAM_POOL,
             queue="default",
-            env=bronze_dbt_run_env(),
             bash_command=bash_dbt_run_select(MODEL),
         )
 

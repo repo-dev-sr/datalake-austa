@@ -82,20 +82,20 @@ WITH date_spine AS (
 , feriados AS (
     -- Fixos (aliases explícitos — Spark não expõe col1/col2 no UNION)
     SELECT yr, TO_DATE(CONCAT(yr, '-01-01')) AS dt_feriado, 'Confraternização Universal (Ano Novo)' AS nm_feriado FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-04-21')), 'Tiradentes'                   FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-05-01')), 'Dia do Trabalho'              FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-09-07')), 'Independência do Brasil'      FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-10-12')), 'Nossa Senhora Aparecida'      FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-11-02')), 'Finados'                      FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-11-15')), 'Proclamação da República'     FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-11-20')), 'Dia da Consciência Negra'     FROM years
-    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-12-25')), 'Natal'                        FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-04-21')) AS dt_feriado, 'Tiradentes' AS nm_feriado                   FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-05-01')) AS dt_feriado, 'Dia do Trabalho' AS nm_feriado              FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-09-07')) AS dt_feriado, 'Independência do Brasil' AS nm_feriado      FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-10-12')) AS dt_feriado, 'Nossa Senhora Aparecida' AS nm_feriado      FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-11-02')) AS dt_feriado, 'Finados' AS nm_feriado                      FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-11-15')) AS dt_feriado, 'Proclamação da República' AS nm_feriado     FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-11-20')) AS dt_feriado, 'Dia da Consciência Negra' AS nm_feriado     FROM years
+    UNION ALL SELECT yr, TO_DATE(CONCAT(yr, '-12-25')) AS dt_feriado, 'Natal' AS nm_feriado                        FROM years
     -- Móveis (calculados a partir da Páscoa via Meeus/Jones/Butcher)
-    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa, -48), 'Carnaval (Segunda-feira)'        FROM easter_dates e
-    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa, -47), 'Carnaval (Terça-feira)'          FROM easter_dates e
-    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa,  -2), 'Sexta-feira Santa'               FROM easter_dates e
-    UNION ALL SELECT e.yr, e.dt_pascoa,               'Páscoa'                           FROM easter_dates e
-    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa,  60), 'Corpus Christi'                  FROM easter_dates e
+    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa, -48) AS dt_feriado, 'Carnaval (Segunda-feira)' AS nm_feriado        FROM easter_dates e
+    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa, -47) AS dt_feriado, 'Carnaval (Terça-feira)' AS nm_feriado          FROM easter_dates e
+    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa,  -2) AS dt_feriado, 'Sexta-feira Santa' AS nm_feriado               FROM easter_dates e
+    UNION ALL SELECT e.yr, e.dt_pascoa               AS dt_feriado, 'Páscoa' AS nm_feriado                           FROM easter_dates e
+    UNION ALL SELECT e.yr, DATE_ADD(e.dt_pascoa,  60) AS dt_feriado, 'Corpus Christi' AS nm_feriado                  FROM easter_dates e
 )
 , feriados_dedup AS (
     -- garante unicidade caso dois feriados caiam no mesmo dia (ex.: Páscoa + Consciência Negra)

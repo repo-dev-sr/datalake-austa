@@ -11,7 +11,14 @@ from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 
 from common.config import DBT_PROFILE_NAME, DBT_PROFILES_DIR, DBT_PROJECT_DIR, DBT_TARGET
-from common.dbt_cli import dbt_deps_then_run_command, dbt_executable_path, dbt_run_command, dbt_subprocess_env
+from common.dbt_cli import (
+    dbt_deps_then_run_command,
+    dbt_executable_path,
+    dbt_fail_tail,
+    dbt_run_command,
+    dbt_shell_preamble,
+    proj_quote,
+)
 from common.default_args import DEFAULT_ARGS
 
 
@@ -61,9 +68,22 @@ def _pick_cli_branch(**context):
     tags=["orchestrator", "batch", "lakehouse", "dbt", "hourly", "scheduled"],
 )
 def master_dbt_orchestrator_batch_dag():
-    _env = dbt_subprocess_env()
     _exe = dbt_executable_path()
     _profiles = str(Path(DBT_PROFILES_DIR).resolve())
+    _proj = proj_quote(DBT_PROJECT_DIR)
+    _fail = dbt_fail_tail()
+
+    _cli_optional = (
+        f"{dbt_shell_preamble()}"
+        f"_L=/tmp/dbt_af_$$; mkdir -p \"$_L\"; "
+        f"cd {_proj} && {_exe} deps --profiles-dir {_profiles} && "
+        f"{_exe} run --no-use-colors --log-path \"$_L\" "
+        f"--profiles-dir {_profiles} --profile {DBT_PROFILE_NAME} --target {DBT_TARGET} "
+        "--select '{{ params.dbt_select or \"path:models/bronze\" }}' "
+        "--vars '{{ dict(cdc_lookback_hours=params.cdc_lookback_hours, "
+        "cdc_reprocess_hours=params.cdc_reprocess_hours) | tojson }}' "
+        f"{_fail}"
+    )
 
     branch = BranchPythonOperator(
         task_id="branch_cli_or_skip",
@@ -74,21 +94,13 @@ def master_dbt_orchestrator_batch_dag():
         task_id="dbt_run_with_vars",
         pool="spark_dbt",
         queue="dbt",
-        env=_env,
-        bash_command=(
-            f"cd {DBT_PROJECT_DIR} && {_exe} deps --profiles-dir {_profiles} && {_exe} run "
-            f"--profiles-dir {_profiles} --profile {DBT_PROFILE_NAME} --target {DBT_TARGET} "
-            "--select '{{ params.dbt_select or \"path:models/bronze\" }}' "
-            "--vars '{{ dict(cdc_lookback_hours=params.cdc_lookback_hours, "
-            "cdc_reprocess_hours=params.cdc_reprocess_hours) | tojson }}'"
-        ),
+        bash_command=_cli_optional,
     )
 
     dbt_bronze_layer = BashOperator(
         task_id="dbt_bronze_layer",
         pool="spark_dbt",
         queue="dbt",
-        env=_env,
         bash_command=dbt_deps_then_run_command(select="path:models/bronze"),
         trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     )
@@ -96,14 +108,12 @@ def master_dbt_orchestrator_batch_dag():
         task_id="dbt_silver_layer",
         pool="spark_dbt",
         queue="dbt",
-        env=_env,
         bash_command=dbt_run_command(select="path:models/silver"),
     )
     dbt_silver_context_layer = BashOperator(
         task_id="dbt_silver_context_layer",
         pool="spark_dbt",
         queue="dbt",
-        env=_env,
         bash_command=dbt_run_command(select="path:models/silver_context"),
     )
 

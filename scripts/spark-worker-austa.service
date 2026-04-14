@@ -1,0 +1,19 @@
+[Unit]
+Description=Spark Workers (2 instancias via SPARK_WORKER_INSTANCES no spark-env; -c 2 cada)
+After=network.target spark-master.service
+Requires=spark-master.service
+
+[Service]
+Type=forking
+Environment=SPARK_HOME=/opt/spark
+# CWD em / impede o Worker de criar subpastas do executor em "." (IOException)
+WorkingDirectory=/opt/spark
+# systemd expande $$ literal; nao usar ${VAR} aqui sem escape — URL fixa do master local
+ExecStartPre=/opt/spark/sbin/stop-worker.sh
+ExecStart=/opt/spark/sbin/start-worker.sh spark://172.36.2.222:7077 -c 2
+ExecStop=/opt/spark/sbin/stop-worker.sh
+Restart=on-failure
+User=ec2-user
+
+[Install]
+WantedBy=multi-user.target

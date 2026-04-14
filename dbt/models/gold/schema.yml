@@ -126,6 +126,30 @@ models:
       - name: _gold_loaded_at
         description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
 
+  # ── DIMENSÃO: CID (Classificação Internacional de Doenças) ─────────────────────
+  - name: dim_cid
+    description: >
+      Dimensão CID — SCD Type 1.
+      Grain: 1 linha por cd_doenca_cid. Fonte: silver_context.procedimento.
+      Dimensão conformada — compartilhada entre fatos assistenciais e financeiros.
+      ⚠️  Apenas código disponível — sem descrição no Silver-Context atual.
+      Enriquecer com seed de tabela CID quando disponível.
+    config:
+      materialized: table
+      tags: ["gold", "tasy", "cid", "dimensao_conformada"]
+    columns:
+      - name: sk_cid
+        description: "Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_doenca_cid])"
+        tests:
+          - unique
+          - not_null
+      - name: nk_cid
+        description: "Natural key — cd_doenca_cid do Tasy (código CID do procedimento)"
+        tests:
+          - not_null
+      - name: _gold_loaded_at
+        description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
+
   # ── DIMENSÃO: Médico ──────────────────────────────────────────────────────────
   - name: dim_medico
     description: >
@@ -272,6 +296,15 @@ models:
           - relationships:
               to: ref('dim_convenio')
               field: sk_convenio
+      - name: sk_cid
+        description: >
+          FK para dim_cid. NULL quando o procedimento não possui CID informado
+          (cd_doenca_cid sentinela = -1).
+        tests:
+          - relationships:
+              to: ref('dim_cid')
+              field: sk_cid
+              where: "sk_cid IS NOT NULL"
       - name: nk_sequencia_procedimento
         description: "Natural key — nr_sequencia do Tasy PROC_PACIENTE"
         tests:
@@ -288,6 +321,8 @@ models:
         description: "Natural key — cd_procedimento"
       - name: nk_convenio
         description: "Natural key — cd_convenio"
+      - name: nk_cid
+        description: "Natural key — cd_doenca_cid do Tasy. NULL quando não informado."
       - name: atend_ie_tipo_atendimento
         description: "Tipo de atendimento do contexto (dimensão degenerada)"
       - name: atend_ie_clinica
