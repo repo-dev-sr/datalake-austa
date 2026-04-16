@@ -11,16 +11,6 @@
 {% set raw_path = "s3a://austa-lakehouse-prod-data-lake-169446931765/raw/raw-tasy/stream/tasy.TASY.PROC_PACIENTE_CONVENIO/" %}
 {% set cdc_lookback_hours = var('cdc_lookback_hours', 2) %}
 {% set cdc_reprocess_hours = var('cdc_reprocess_hours', 0) %}
-{% set proc_paciente_convenio_business_cols = [
-  'dt_atualizacao',
-  'nm_usuario',
-  'cd_procedimento',
-  'ds_procedimento',
-  'cd_unidade_medida',
-  'tx_conversao_qtde',
-  'cd_grupo',
-  'nr_proc_interno'
-] %}
 
 WITH target_watermark AS (
   {% if is_incremental() %}
@@ -43,11 +33,11 @@ WITH target_watermark AS (
     end  AS wm_start_ms
 )
 , raw_incremental AS (
-  SELECT *
+  SELECT   *
   FROM avro.`{{ raw_path }}`
   WHERE CAST(COALESCE(__ts_ms, 0) AS BIGINT) >= (SELECT wm_start_ms FROM params)
 )
-select
+SELECT
     nr_seq_procedimento
   , dt_atualizacao as dh_atualizacao
   , nm_usuario
@@ -57,6 +47,6 @@ select
   , tx_conversao_qtde
   , cd_grupo
   , nr_proc_interno
-  {{ bronze_audit_columns(raw_path, proc_paciente_convenio_business_cols) }}
-  , __source_txid
-from raw_incremental
+  {{ bronze_audit_columns(raw_path) }}
+  , r.__source_txid
+FROM raw_incremental r

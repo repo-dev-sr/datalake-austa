@@ -8,7 +8,7 @@
   )
 }}
 
-{% set raw_path = "s3a://austa-lakehouse-prod-data-lake-169446931765/raw/raw-tasy/stream/tasy.TASY.PROC_PACIENTE_VALOR/" %}
+{% set raw_path = "s3a://austa-lakehouse-prod-data-lake-169446931765/raw/raw-tasy/stream/austa.TASY.AREA_PROCEDIMENTO/" %}
 {% set cdc_lookback_hours = var('cdc_lookback_hours', 2) %}
 {% set cdc_reprocess_hours = var('cdc_reprocess_hours', 0) %}
 
@@ -32,32 +32,17 @@ WITH target_watermark AS (
         )
     end  AS wm_start_ms
 )
-, raw_incremental AS (
-  SELECT   *
-  FROM avro.`{{ raw_path }}`
-  WHERE CAST(COALESCE(__ts_ms, 0) AS BIGINT) >= (SELECT wm_start_ms FROM params)
-)
+{{ bronze_raw_incremental_austa_envelope(raw_path) }}
 SELECT
-    nr_seq_procedimento
-  , nr_sequencia
-  , ie_tipo_valor
-  , dt_atualizacao as dh_atualizacao
-  , nm_usuario
-  , vl_procedimento
-  , vl_medico
-  , vl_anestesista
-  , vl_materiais
-  , vl_auxiliares
-  , vl_custo_operacional
-  , cd_convenio
-  , cd_categoria
-  , pr_valor
-  , nr_seq_trans_fin
-  , nr_lote_contabil
-  , nr_seq_desconto
-  , qt_pontos
-  , nr_codigo_controle
-  , nr_seq_partic
+    r.cd_area_procedimento AS cd_area_procedimento
+  , r.ds_area_procedimento AS ds_area_procedimento
+  , r.dt_atualizacao AS dh_atualizacao
+  , r.nm_usuario AS nm_usuario
+  , r.ie_origem_proced AS ie_origem_proced
+  , r.cd_original AS cd_original
+  , r.dt_atualizacao_nrec AS dh_atualizacao_nrec
+  , r.nm_usuario_nrec AS nm_usuario_nrec
+  , r.cd_sistema_ant AS cd_sistema_ant
   {{ bronze_audit_columns(raw_path) }}
   , r.__source_txid
 FROM raw_incremental r
