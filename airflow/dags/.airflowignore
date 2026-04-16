@@ -2,6 +2,7 @@
 tests/
 common/
 docs/
+files/
 **/__pycache__/
 **/*.pyc
 *.md

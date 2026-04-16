@@ -11,6 +11,14 @@ AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "sa-east-1")
 # Spark / dbt-spark
 SPARK_HOST = os.environ.get("SPARK_HOST", "177.71.255.159")
 SPARK_MASTER_URL = os.environ.get("SPARK_MASTER_URL", "spark://177.71.255.159:7077")
+# Spark jobs (spark-submit) rodam na EC2 Spark via SSH a partir do worker Airflow.
+SPARK_SSH_USER = os.environ.get("SPARK_SSH_USER", "ec2-user")
+SPARK_SSH_KEY_PATH = os.environ.get("SPARK_SSH_KEY_PATH", "/opt/airflow/ssh/dlk-austa-sa.pem")
+# Script Python copiado para a maquina Spark (mesmo repo; deploy manual/rsync).
+SPARK_REMOTE_COMPACTION_SCRIPT = os.environ.get(
+    "SPARK_REMOTE_COMPACTION_SCRIPT",
+    "/opt/spark/lakehouse/scripts/raw_avro_compaction_job.py",
+)
 SPARK_THRIFT_HOST = os.environ.get("SPARK_THRIFT_HOST", "177.71.255.159")
 SPARK_THRIFT_URL = os.environ.get("SPARK_THRIFT_URL", "jdbc:hive2://177.71.255.159:10000/raw")
 SPARK_THRIFT_USER = os.environ.get("SPARK_THRIFT_USER", "")
