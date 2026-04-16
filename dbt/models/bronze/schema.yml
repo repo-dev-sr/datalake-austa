@@ -1,9 +1,56 @@
-# Bronze: Raw Avro → Iceberg
-# Paths via vars (dags/common/constants.py). Sem JOINs.
-# Nomes de colunas alinhados ao SELECT dos modelos (minúsculas).
+# Bronze: Avro (CDC) → Iceberg — documentação e testes.
+# Fundido a partir de schema.yml (modelos tasy core) e schema_bronze_generated.yml (austa / UNION).
+# Nomes de colunas alinhados ao SELECT (minúsculas). Sem JOINs na bronze.
 version: 2
 
 models:
+  - name: bronze_tasy_area_procedimento
+    description: "Bronze TASY AREA_PROCEDIMENTO (austa) - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_atend_paciente_unidade
+    description: "Bronze TASY ATEND_PACIENTE_UNIDADE — CDC do Oracle via Kafka (stream Avro)"
+    columns:
+      - name: nr_seq_interno
+        description: "Chave técnica do atendimento por unidade (unique_key / merge no Iceberg)"
+        tests:
+          - not_null
+          - unique
+      - name: _is_deleted
+        description: "Tombstone CDC (__deleted = 'true') como BOOLEAN"
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em milissegundos (BIGINT; COALESCE 0)"
+        tests:
+          - not_null
+      - name: _cdc_event_at
+        description: "Instante CDC derivado de __ts_ms (segundos → TIMESTAMP)"
+      - name: _cdc_source_table
+        description: "Tabela de origem informada pelo conector CDC"
+      - name: _source_path
+        description: "Caminho S3 raw (literal) do stream Avro"
+      - name: _row_hash
+        description: "MD5 do JSON do STRUCT das colunas negociais (detecção de mudança de conteúdo)"
+      - name: _bronze_loaded_at
+        description: "Timestamp de carga do registro na camada bronze"
+
   - name: bronze_tasy_atendimento_paciente
     description: "Bronze TASY ATENDIMENTO_PACIENTE — CDC do Oracle via Kafka (stream Avro)"
     columns:
@@ -35,6 +82,439 @@ models:
         description: "Timestamp usado no ordenamento de deduplicação CDC"
       - name: source
         description: "Sistema de origem (ex. tasy via var fonte_sistema)"
+
+  - name: bronze_tasy_austa_beneficiario
+    description: "Bronze TASY AUSTA_BENEFICIARIO - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_austa_conta
+    description: "Bronze TASY AUSTA_CONTA - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_austa_mensalidade
+    description: "Bronze TASY AUSTA_MENSALIDADE - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_austa_prestador
+    description: "Bronze TASY AUSTA_PRESTADOR - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_austa_proc_e_mat
+    description: "Bronze TASY AUSTA_PROC_E_MAT - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_austa_requisicao
+    description: "Bronze TASY AUSTA_REQUISICAO - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_autorizacao_convenio
+    description: "Bronze TASY AUTORIZACAO_CONVENIO (tasy UNION austa) - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_cbo_saude
+    description: "Bronze TASY CBO_SAUDE - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_compl_pessoa_fisica
+    description: "Bronze TASY COMPL_PESSOA_FISICA (tasy UNION austa) - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_conta_paciente
+    description: "Bronze TASY CONTA_PACIENTE — CDC do Oracle via Kafka (stream Avro)"
+    columns:
+      - name: nr_atendimento
+        description: "Número do atendimento (unique_key / merge no Iceberg)"
+        tests:
+          - not_null
+          - unique
+      - name: __op
+        description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: __ts_ms
+        description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: __deleted
+        description: "Flag CDC de registro removido no origem"
+      - name: __source_table
+        description: "Tabela de origem informada pelo conector CDC"
+      - name: partition_path
+        description: "Caminho de partição derivado (raw_path / year / month / day / hour)"
+      - name: create_at
+        description: "Timestamp de carga no lakehouse (bronze)"
+      - name: update_at
+        description: "Timestamp usado no ordenamento de deduplicação CDC"
+      - name: source
+        description: "Sistema de origem (ex. tasy via var fonte_sistema)"
+
+  - name: bronze_tasy_convenio
+    description: "Bronze TASY CONVENIO (tasy UNION austa) - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_diagnostico_doenca
+    description: "Bronze TASY DIAGNOSTICO_DOENCA (tasy UNION austa) - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+  - name: bronze_tasy_especialidade_proc
+    description: "Bronze TASY ESPECIALIDADE_PROC - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_grau_parentesco
+    description: "Bronze TASY GRAU_PARENTESCO - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_grupo_proc
+    description: "Bronze TASY GRUPO_PROC - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pessoa_fisica
+    description: "Bronze TASY PESSOA_FISICA - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pessoa_juridica
+    description: "Bronze TASY PESSOA_JURIDICA - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pessoa_juridica_compl
+    description: "Bronze TASY PESSOA_JURIDICA_COMPL - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pls_lote_mensalidade
+    description: "Bronze TASY PLS_LOTE_MENSALIDADE - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pls_mensalidade
+    description: "Bronze TASY PLS_MENSALIDADE - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pls_mensalidade_segurado
+    description: "Bronze TASY PLS_MENSALIDADE_SEGURADO - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pls_rol_grupo_proc
+    description: "Bronze TASY PLS_ROL_GRUPO_PROC - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_pls_rol_procedimento
+    description: "Bronze TASY PLS_ROL_PROCEDIMENTO - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_proc_paciente_convenio
+    description: "Bronze TASY PROC_PACIENTE_CONVENIO — CDC do Oracle via Kafka (stream Avro)"
+    columns:
+      - name: nr_seq_procedimento
+        description: "Identificador do procedimento (unique_key / merge no Iceberg)"
+        tests:
+          - not_null
+          - unique
+      - name: __op
+        description: "Operação CDC (c=create, u=update, d=delete)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: __ts_ms
+        description: "Timestamp CDC em milissegundos"
+        tests:
+          - not_null
+      - name: __deleted
+        description: "Flag CDC de registro removido no origem"
+      - name: __source_table
+        description: "Tabela de origem informada pelo conector CDC"
+      - name: partition_path
+        description: "Caminho de partição derivado (raw_path / year / month / day / hour)"
+      - name: create_at
+        description: "Timestamp de carga no lakehouse (bronze)"
+      - name: update_at
+        description: "Timestamp usado no ordenamento de deduplicação CDC"
+      - name: source
+        description: "Sistema de origem (tasy)"
 
   - name: bronze_tasy_proc_paciente_valor
     description: "Bronze TASY PROC_PACIENTE_VALOR — CDC do Oracle via Kafka (stream Avro). Chave de merge composta (nr_seq_procedimento, nr_sequencia)."
@@ -69,95 +549,22 @@ models:
       - name: source
         description: "Sistema de origem (tasy)"
 
-  - name: bronze_tasy_atend_paciente_unidade
-    description: "Bronze TASY ATEND_PACIENTE_UNIDADE — CDC do Oracle via Kafka (stream Avro)"
+  - name: bronze_tasy_procedimento
+    description: "Bronze TASY PROCEDIMENTO (cadastro) - CDC Oracle via Kafka (stream Avro para Iceberg)."
     columns:
-      - name: nr_seq_interno
-        description: "Chave técnica do atendimento por unidade (unique_key / merge no Iceberg)"
-        tests:
-          - not_null
-          - unique
-      - name: _is_deleted
-        description: "Tombstone CDC (__deleted = 'true') como BOOLEAN"
       - name: _cdc_op
         description: "Operação CDC (c=create, u=update, d=delete, r=read)"
         tests:
           - accepted_values:
               values: ["c", "u", "d", "r"]
       - name: _cdc_ts_ms
-        description: "Timestamp CDC em milissegundos (BIGINT; COALESCE 0)"
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
         tests:
           - not_null
-      - name: _cdc_event_at
-        description: "Instante CDC derivado de __ts_ms (segundos → TIMESTAMP)"
-      - name: _cdc_source_table
-        description: "Tabela de origem informada pelo conector CDC"
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
       - name: _source_path
-        description: "Caminho S3 raw (literal) do stream Avro"
-      - name: _row_hash
-        description: "MD5 do JSON do STRUCT das colunas negociais (detecção de mudança de conteúdo)"
-      - name: _bronze_loaded_at
-        description: "Timestamp de carga do registro na camada bronze"
-
-  - name: bronze_tasy_conta_paciente
-    description: "Bronze TASY CONTA_PACIENTE — CDC do Oracle via Kafka (stream Avro)"
-    columns:
-      - name: nr_atendimento
-        description: "Número do atendimento (unique_key / merge no Iceberg)"
-        tests:
-          - not_null
-          - unique
-      - name: __op
-        description: "Operação CDC (c=create, u=update, d=delete)"
-        tests:
-          - accepted_values:
-              values: ["c", "u", "d", "r"]
-      - name: __ts_ms
-        description: "Timestamp CDC em milissegundos"
-        tests:
-          - not_null
-      - name: __deleted
-        description: "Flag CDC de registro removido no origem"
-      - name: __source_table
-        description: "Tabela de origem informada pelo conector CDC"
-      - name: partition_path
-        description: "Caminho de partição derivado (raw_path / year / month / day / hour)"
-      - name: create_at
-        description: "Timestamp de carga no lakehouse (bronze)"
-      - name: update_at
-        description: "Timestamp usado no ordenamento de deduplicação CDC"
-      - name: source
-        description: "Sistema de origem (ex. tasy via var fonte_sistema)"
-
-  - name: bronze_tasy_proc_paciente_convenio
-    description: "Bronze TASY PROC_PACIENTE_CONVENIO — CDC do Oracle via Kafka (stream Avro)"
-    columns:
-      - name: nr_seq_procedimento
-        description: "Identificador do procedimento (unique_key / merge no Iceberg)"
-        tests:
-          - not_null
-          - unique
-      - name: __op
-        description: "Operação CDC (c=create, u=update, d=delete)"
-        tests:
-          - accepted_values:
-              values: ["c", "u", "d", "r"]
-      - name: __ts_ms
-        description: "Timestamp CDC em milissegundos"
-        tests:
-          - not_null
-      - name: __deleted
-        description: "Flag CDC de registro removido no origem"
-      - name: __source_table
-        description: "Tabela de origem informada pelo conector CDC"
-      - name: partition_path
-        description: "Caminho de partição derivado (raw_path / year / month / day / hour)"
-      - name: create_at
-        description: "Timestamp de carga no lakehouse (bronze)"
-      - name: update_at
-        description: "Timestamp usado no ordenamento de deduplicação CDC"
-      - name: source
-        description: "Sistema de origem (tasy)"
+        description: "Caminho S3 raw do stream"
 
   - name: bronze_tasy_procedimento_paciente
     description: "Bronze TASY PROCEDIMENTO_PACIENTE — CDC do Oracle via Kafka (stream Avro)"
@@ -188,3 +595,54 @@ models:
         description: "Timestamp usado no ordenamento de deduplicação CDC"
       - name: source
         description: "Sistema de origem (tasy)"
+  - name: bronze_tasy_sus_municipio
+    description: "Bronze TASY SUS_MUNICIPIO - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_tipo_pessoa_juridica
+    description: "Bronze TASY TIPO_PESSOA_JURIDICA - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
+  - name: bronze_tasy_tiss_motivo_glosa
+    description: "Bronze TASY TISS_MOTIVO_GLOSA - CDC Oracle via Kafka (stream Avro para Iceberg)."
+    columns:
+      - name: _cdc_op
+        description: "Operação CDC (c=create, u=update, d=delete, r=read)"
+        tests:
+          - accepted_values:
+              values: ["c", "u", "d", "r"]
+      - name: _cdc_ts_ms
+        description: "Timestamp CDC em ms (campo físico __ts_ms no Avro)"
+        tests:
+          - not_null
+      - name: _is_deleted
+        description: "Tombstone CDC (boolean)"
+      - name: _source_path
+        description: "Caminho S3 raw do stream"
+
