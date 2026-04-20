@@ -15,7 +15,7 @@ from typing import Any, Dict
 
 from cosmos import DbtTaskGroup
 from cosmos.config import ProfileConfig, ProjectConfig, RenderConfig
-from cosmos.constants import LoadMode, TestBehavior
+from cosmos.constants import LoadMode
 
 from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_PROFILES_DIR, DBT_TARGET
 
@@ -90,10 +90,13 @@ def get_profile_config() -> ProfileConfig:
 
 def render_config_for_select(select: list[str]) -> RenderConfig:
     manifest_path = Path(DBT_PROJECT_DIR).resolve() / "target" / "manifest.json"
+    model_only_select = [
+        item if item.startswith("resource_type:") else f"resource_type:model,{item}"
+        for item in select
+    ]
     return RenderConfig(
         load_method=LoadMode.DBT_MANIFEST if manifest_path.exists() else LoadMode.DBT_LS,
-        test_behavior=TestBehavior.NONE,
-        select=select,
+        select=model_only_select,
     )
 
 
