@@ -53,6 +53,7 @@ jobs:
           ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" "\
             sudo mkdir -p /opt/airflow/dbt && \
             sudo rsync -az --delete /tmp/austa-dbt/ /opt/airflow/dbt/ && \
+            if [ ! -f /opt/airflow/dbt/profiles.yml ] && [ -f /opt/airflow/dbt/profiles.yml.example ]; then sudo cp /opt/airflow/dbt/profiles.yml.example /opt/airflow/dbt/profiles.yml; fi && \
             sudo rm -rf /tmp/austa-dbt"
 
       - name: Setup Python for dbt manifest
