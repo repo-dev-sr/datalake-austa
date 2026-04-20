@@ -95,3 +95,7 @@ docker exec airflow-scheduler airflow tasks states-for-dag-run <dag_id> <run_id>
 - **Bronze stream fora do Cosmos:** evita fila única com silver e parse `dbt ls` por DAG; trade-off: vários `dbt run` no **`airflow-worker`** — se houver OOM, baixar slots de **`bronze_stream`** (ex.: 2) ou subir RAM do worker default.
 
 Para escalar: **RAM** dos workers, depois ajustar slots **`bronze_stream`** e **`spark_dbt`** com monitorização Kyuubi.
+
+## 8. DAG `raw_tasy_avro_compactor`
+
+Orquestra compactação de AVRO raw (última hora) com recurso à EC2 Spark. Configuração de anfitrião e caminhos: `dags/streaming/raw_tasy_avro_compactor_dag.py` e `dags/common/config.py` (`SPARK_HOST`, `SPARK_MASTER_URL`, etc.). Não usa pool dedicado na task de compactação (opcional criar pool na UI se quiser limitar concorrência).

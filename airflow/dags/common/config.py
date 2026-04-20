@@ -11,9 +11,27 @@ AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "sa-east-1")
 # Spark / dbt-spark
 SPARK_HOST = os.environ.get("SPARK_HOST", "177.71.255.159")
 SPARK_MASTER_URL = os.environ.get("SPARK_MASTER_URL", "spark://177.71.255.159:7077")
-# Spark jobs (spark-submit) rodam na EC2 Spark via SSH a partir do worker Airflow.
+# Spark jobs (spark-submit) na EC2 Spark; ligação conforme DAG (ex. SSH).
 SPARK_SSH_USER = os.environ.get("SPARK_SSH_USER", "ec2-user")
-SPARK_SSH_KEY_PATH = os.environ.get("SPARK_SSH_KEY_PATH", "/opt/airflow/ssh/dlk-austa-sa.pem")
+_SPARK_SSH_KEY_DEFAULT = "/opt/airflow/ssh/spark.pem"
+SPARK_SSH_KEY_PATH = os.environ.get("SPARK_SSH_KEY_PATH", _SPARK_SSH_KEY_DEFAULT)
+
+
+def get_spark_ssh_key_path() -> str:
+    """Caminho da identidade SSH no worker: env SPARK_SSH_KEY_PATH > Variable > default."""
+    if os.environ.get("SPARK_SSH_KEY_PATH"):
+        return os.environ["SPARK_SSH_KEY_PATH"].strip()
+    try:
+        from airflow.models import Variable
+
+        return str(
+            Variable.get(
+                "spark_ssh_private_key_path",
+                default_var=_SPARK_SSH_KEY_DEFAULT,
+            )
+        ).strip()
+    except Exception:
+        return _SPARK_SSH_KEY_DEFAULT
 # Script Python copiado para a maquina Spark (mesmo repo; deploy manual/rsync).
 SPARK_REMOTE_COMPACTION_SCRIPT = os.environ.get(
     "SPARK_REMOTE_COMPACTION_SCRIPT",

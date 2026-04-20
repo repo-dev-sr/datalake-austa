@@ -18,8 +18,8 @@ from common.config import (
     SPARK_HOST,
     SPARK_MASTER_URL,
     SPARK_REMOTE_COMPACTION_SCRIPT,
-    SPARK_SSH_KEY_PATH,
     SPARK_SSH_USER,
+    get_spark_ssh_key_path,
 )
 from common.default_args import DEFAULT_ARGS
 
@@ -27,10 +27,12 @@ BUCKET = DATALAKE_BUCKET
 INPUT_PREFIX = "raw/raw-tasy/stream/"
 TARGET_SIZE_MB = 100
 
+# Relatorio S3 (boto3): corre no proprio worker Airflow — sem SSH para o Spark.
+_JOB_LOCAL = "/opt/airflow/dags/files/raw_avro_compaction_job.py"
+
 _SSH_OPTS = "-o BatchMode=yes -o StrictHostKeyChecking=no"
-_SSH_BASE = (
-    f'ssh -i {SPARK_SSH_KEY_PATH} {_SSH_OPTS} {SPARK_SSH_USER}@{SPARK_HOST} '
-)
+_SSH_KEY = get_spark_ssh_key_path()
+_SSH_BASE = f'ssh -i {_SSH_KEY} {_SSH_OPTS} {SPARK_SSH_USER}@{SPARK_HOST} '
 _SPARK_SUBMIT_REMOTE = "/opt/spark/bin/spark-submit"
 
 
@@ -46,16 +48,15 @@ _SPARK_SUBMIT_REMOTE = "/opt/spark/bin/spark-submit"
     tags=["streaming", "raw", "avro", "compactacao", "lakehouse"],
 )
 def raw_tasy_avro_compactor_dag():
-    # Ranking S3: roda na maquina Spark (python3 + boto3) via SSH — mesmo script que o job Spark.
+    # Ranking S3 (boto3): local no container Airflow; nao requer script nem boto3 na EC2 Spark.
     report_latest_files = BashOperator(
         task_id="report_latest_files_by_topic",
         bash_command=(
-            _SSH_BASE
-            + f'"python3 {SPARK_REMOTE_COMPACTION_SCRIPT} '
+            f"python3 {_JOB_LOCAL} "
             + "--mode report "
             + f"--bucket {BUCKET} "
             + f"--input-prefix {INPUT_PREFIX} "
-            + f'--region {AWS_REGION}"'
+            + f"--region {AWS_REGION}"
         ),
         queue="default",
     )
@@ -75,7 +76,6 @@ def raw_tasy_avro_compactor_dag():
             + f'--region {AWS_REGION}"'
         ),
         queue="default",
-        pool="spark_pyspark",
     )
 
     report_latest_files >> compact_last_hour
