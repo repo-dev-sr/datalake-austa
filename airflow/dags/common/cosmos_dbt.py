@@ -15,7 +15,7 @@ from typing import Any, Dict
 
 from cosmos import DbtTaskGroup
 from cosmos.config import ProfileConfig, ProjectConfig, RenderConfig
-from cosmos.constants import LoadMode
+from cosmos.constants import LoadMode, TestBehavior
 
 from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_PROFILES_DIR, DBT_TARGET
 
@@ -96,6 +96,7 @@ def render_config_for_select(select: list[str]) -> RenderConfig:
     ]
     return RenderConfig(
         load_method=LoadMode.DBT_MANIFEST if manifest_path.exists() else LoadMode.DBT_LS,
+        test_behavior=TestBehavior.NONE,
         select=model_only_select,
     )
 
@@ -118,10 +119,33 @@ def dbt_operator_args() -> Dict[str, Any]:
 
 def layer_dbt_task_group(group_id: str, select: list[str]) -> DbtTaskGroup:
     """Um DbtTaskGroup com seleção dbt (modelo, path:, tag:, etc.)."""
-    return DbtTaskGroup(
+    task_group = DbtTaskGroup(
         group_id=group_id,
         project_config=get_project_config(),
         profile_config=get_profile_config(),
         render_config=render_config_for_select(select),
         operator_args=dbt_operator_args(),
     )
+    _prune_dbt_test_tasks(task_group)
+    return task_group
+
+
+def _prune_dbt_test_tasks(task_group: DbtTaskGroup) -> None:
+    """Remove tasks `.test` geradas pelo Cosmos para executar apenas `dbt run`."""
+    for child_id, task in list(task_group.children.items()):
+        if not child_id.endswith(".test"):
+            continue
+
+        for upstream_task in list(task.upstream_list):
+            upstream_task.downstream_task_ids.discard(task.task_id)
+
+        for downstream_task in list(task.downstream_list):
+            downstream_task.upstream_task_ids.discard(task.task_id)
+
+        task.upstream_task_ids.clear()
+        task.downstream_task_ids.clear()
+
+        if task.dag is not None:
+            task.dag.task_dict.pop(task.task_id, None)
+
+        task_group.children.pop(child_id, None)
