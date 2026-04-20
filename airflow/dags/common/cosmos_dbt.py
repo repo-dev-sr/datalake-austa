@@ -15,7 +15,7 @@ from typing import Any, Dict
 
 from cosmos import DbtTaskGroup
 from cosmos.config import ProfileConfig, ProjectConfig, RenderConfig
-from cosmos.constants import LoadMode
+from cosmos.constants import LoadMode, TestBehavior
 
 from common.config import DBT_PROFILE_NAME, DBT_PROJECT_DIR, DBT_PROFILES_DIR, DBT_TARGET
 
@@ -92,6 +92,7 @@ def render_config_for_select(select: list[str]) -> RenderConfig:
     manifest_path = Path(DBT_PROJECT_DIR).resolve() / "target" / "manifest.json"
     return RenderConfig(
         load_method=LoadMode.DBT_MANIFEST if manifest_path.exists() else LoadMode.DBT_LS,
+        test_behavior=TestBehavior.NONE,
         select=select,
     )
 
@@ -120,4 +121,5 @@ def layer_dbt_task_group(group_id: str, select: list[str]) -> DbtTaskGroup:
         profile_config=get_profile_config(),
         render_config=render_config_for_select(select),
         operator_args=dbt_operator_args(),
+        test_indirect_selection=None,
     )

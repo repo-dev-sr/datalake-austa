@@ -6,21 +6,23 @@ Todas as macros abaixo estão em `dbt/macros/`. Uso no **Spark SQL** compilado p
 
 ## Auditoria
 
-### `bronze_audit_columns(raw_path, business_columns)`
+### `bronze_audit_columns(raw_path [, raw_alias])`
 
 **Arquivo:** `macros/audit/bronze_audit_columns.sql`
 
 | Argumento | Tipo | Descrição |
 |-----------|------|-----------|
 | `raw_path` | string | Caminho S3 do Avro (ex.: `s3a://bucket/.../`). |
-| `business_columns` | lista de strings | Colunas de negócio que entram no `STRUCT` do MD5 (`_row_hash`). |
+| `raw_alias` | string (opcional) | Alias do `FROM raw_incremental` (default `r`). |
+
+**Convenção:** CTE `raw_incremental` + `FROM raw_incremental r` (ou o alias informado).
 
 **Gera (fragmento com vírgulas à esquerda):**
 
 - `_is_deleted` — de `__deleted`
 - `_cdc_op`, `_cdc_ts_ms`, `_cdc_event_at`, `_cdc_source_table`
 - `_source_path` — literal do `raw_path`
-- `_row_hash` — MD5 do JSON do STRUCT das colunas de negócio
+- `_row_hash` — MD5 do JSON do `STRUCT(*)` sobre a linha Avro com `SELECT * EXCEPT (__deleted, __source_txid, kafka_ingestion_source, year, month, day, hour)` (subconsulta correlacionada a `__ts_ms` + `__source_txid`)
 - `_bronze_loaded_at` — timestamp de carga (America/Sao_Paulo)
 
 **Exemplo**
@@ -29,9 +31,9 @@ Todas as macros abaixo estão em `dbt/macros/`. Uso no **Spark SQL** compilado p
 SELECT
     nr_atendimento
   , dt_entrada AS dh_entrada
-  {{ bronze_audit_columns(raw_path, atendimento_paciente_business_cols) }}
-  , __source_txid
-FROM raw_incremental
+  {{ bronze_audit_columns(raw_path) }}
+  , r.__source_txid
+FROM raw_incremental r
 ```
 
 ---

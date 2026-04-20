@@ -32,3 +32,7 @@ lakehouse_tasy:
         "spark.executor.heartbeatInterval": "60s"
         "spark.sql.adaptive.enabled": "true"
         "spark.sql.adaptive.coalescePartitions.enabled": "true"
+        # Leitura Avro (raw CDC): SPARK-31404 — sem isto, Spark 3 falha em date/timestamp "antigos".
+        # CORRECTED = calendário proléptico; LEGACY se os ficheiros forem de Spark 2 / Hive antigo.
+        "spark.sql.avro.datetimeRebaseModeInRead": "CORRECTED"
+        "spark.sql.avro.dateRebaseModeInRead": "CORRECTED"

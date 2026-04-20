@@ -87,15 +87,15 @@ CTE raw_incremental:
 
 SELECT:
   colunas negócio (dt_* AS dh_* onde aplicável)
-  + bronze_audit_columns(raw_path, lista_colunas_negócio)
-  + __source_txid (para ordenação na silver)
+  + bronze_audit_columns(raw_path)
+  + r.__source_txid (para ordenação na silver; FROM raw_incremental r)
 ```
 
 **Checklist junior**
 
 1. Nome do arquivo = nome do modelo = `bronze_tasy_{entidade}`.
 2. `raw_path` igual ao prefixo S3 usado pelo pipeline (ver `airflow/dags/common/constants.py`).
-3. Lista `business_columns` da macro **deve** bater com colunas usadas no hash (mesma ordem/conjunto que o `STRUCT` na bronze).
+3. `FROM raw_incremental r` e `{{ bronze_audit_columns(raw_path) }}` — o `_row_hash` exclui automaticamente `__deleted`, `__source_txid`, `kafka_ingestion_source`, `year`, `month`, `day`, `hour` do Avro (demais colunas entram no hash).
 4. Documentar no `bronze/schema.yml` com os **mesmos** nomes do `SELECT` final.
 
 ---
