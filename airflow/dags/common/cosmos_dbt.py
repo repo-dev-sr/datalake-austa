@@ -1,11 +1,8 @@
 """
 Configuração compartilhada para DAGs Astronomer Cosmos + dbt-spark (lakehouse Tasy).
 
-LoadMode.DBT_LS: descoberta de nós via `dbt ls` no parse da DAG — não exige `target/manifest.json`
-no scheduler (evita Broken DAG quando o artefato ainda não foi gerado no volume).
-
-Para usar manifest pré-gerado (CI/imagem), volte a `LoadMode.DBT_MANIFEST` e defina
-`ProjectConfig(manifest_path=...)` apontando para um arquivo existente.
+LoadMode.DBT_MANIFEST: parse de nós via artefato pré-gerado `target/manifest.json`.
+Exige que o arquivo exista no scheduler em `DBT_PROJECT_DIR/target/manifest.json`.
 
 DbtTaskGroup: use `from cosmos import DbtTaskGroup` (reexport do pacote cosmos).
 """
@@ -44,8 +41,10 @@ def _dbt_env_vars() -> dict[str, str]:
 
 def get_project_config() -> ProjectConfig:
     project_path = Path(DBT_PROJECT_DIR).resolve()
+    manifest_path = project_path / "target" / "manifest.json"
     return ProjectConfig(
         dbt_project_path=str(project_path),
+        manifest_path=str(manifest_path),
         env_vars=_dbt_env_vars(),
     )
 
@@ -81,7 +80,7 @@ def get_profile_config() -> ProfileConfig:
 
 def render_config_for_select(select: list[str]) -> RenderConfig:
     return RenderConfig(
-        load_method=LoadMode.DBT_LS,
+        load_method=LoadMode.DBT_MANIFEST,
         select=select,
     )
 
