@@ -283,9 +283,15 @@ def compact_mode(args: argparse.Namespace) -> None:
 
     target_bytes = args.target_size_mb * 1024 * 1024
 
+    # SPARK-31404 / INCONSISTENT_BEHAVIOR_CROSS_VERSION.READ_ANCIENT_DATETIME: Avro CDC (Debezium)
+    # pode conter date/timestamp interpretados no calendario "legacy"; sem LEGACY o Spark 3 falha ao ler.
     spark = (
         SparkSession.builder.appName("raw-avro-compactor-last-hour")
         .config("spark.sql.avro.compression.codec", "deflate")
+        .config("spark.sql.avro.datetimeRebaseModeInRead", "LEGACY")
+        .config("spark.sql.avro.dateRebaseModeInRead", "LEGACY")
+        .config("spark.sql.avro.datetimeRebaseModeInWrite", "LEGACY")
+        .config("spark.sql.avro.dateRebaseModeInWrite", "LEGACY")
         .getOrCreate()
     )
 
