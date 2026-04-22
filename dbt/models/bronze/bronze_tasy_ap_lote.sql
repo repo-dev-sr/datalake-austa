@@ -56,6 +56,7 @@ SELECT
 
     -- Timestamps do ciclo SLA (TASY DT_* -> dh_*)
   , CAST(r.dt_geracao_lote AS TIMESTAMP)       AS dh_geracao_lote
+  , CAST(r.dt_inicio_dispensacao AS TIMESTAMP) AS dh_inicio_dispensacao
   , CAST(r.dt_atend_farmacia AS TIMESTAMP)     AS dh_atend_farmacia
   , CAST(r.dt_disp_farmacia AS TIMESTAMP)      AS dh_disp_farmacia
   , CAST(r.dt_entrega_setor AS TIMESTAMP)      AS dh_entrega_setor

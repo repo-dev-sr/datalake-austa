@@ -10,7 +10,7 @@
       'nr_seq_classif', 'nr_seq_turno', 'nr_seq_lote_sup', 'nr_seq_embalagem',
       'nr_seq_motivo_parcial', 'nr_seq_mot_desdobrar', 'cd_estabelecimento',
       'ie_status_lote', 'ie_urgente', 'ie_controlado', 'ie_dispensacao', 'ie_tipo_lote',
-      'dt_geracao_lote', 'dt_atend_farmacia', 'dt_disp_farmacia', 'dt_entrega_setor',
+      'dt_geracao_lote', 'dt_inicio_dispensacao', 'dt_atend_farmacia', 'dt_disp_farmacia', 'dt_entrega_setor',
       'dt_recebimento_setor', 'dt_impressao', 'dt_conferencia', 'dt_cancelamento',
       'dt_suspensao',
       'nm_usuario_atendimento', 'nm_usuario_disp', 'nm_usuario_entrega', 'nm_usuario_receb',
@@ -76,6 +76,7 @@ WITH base AS (
 
       -- Timestamps do ciclo SLA (dh_* -> dt_*)
     , {{ standardize_date('d.dh_geracao_lote') }}                 AS dt_geracao_lote
+    , {{ standardize_date('d.dh_inicio_dispensacao') }}           AS dt_inicio_dispensacao
     , {{ standardize_date('d.dh_atend_farmacia') }}               AS dt_atend_farmacia
     , {{ standardize_date('d.dh_disp_farmacia') }}                AS dt_disp_farmacia
     , {{ standardize_date('d.dh_entrega_setor') }}                AS dt_entrega_setor

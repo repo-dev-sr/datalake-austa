@@ -71,8 +71,11 @@ SELECT
   , ap_lote.ie_dispensacao                                                     AS ie_dispensacao
   , ap_lote.ie_tipo_lote                                                       AS ie_tipo_lote
 
-    -- Timestamps do ciclo SLA (G -> A -> D -> E -> R) + cancelamento/suspensao
+    -- Timestamps do ciclo SLA (G -> I -> A -> D -> E -> R) + cancelamento/suspensao
+    -- dt_inicio_dispensacao: 19,32% preenchido em cancelados (vs 0,02% dt_atend_farmacia) —
+    -- usar para detectar desperdício operacional em gold_fct_cancelamento_lote
   , ap_lote.dt_geracao_lote                                                    AS dt_geracao_lote
+  , ap_lote.dt_inicio_dispensacao                                              AS dt_inicio_dispensacao
   , ap_lote.dt_atend_farmacia                                                  AS dt_atend_farmacia
   , ap_lote.dt_disp_farmacia                                                   AS dt_disp_farmacia
   , ap_lote.dt_entrega_setor                                                   AS dt_entrega_setor
@@ -135,9 +138,13 @@ SELECT
       ELSE 'outro'
     END                                                                        AS ie_status_ciclo
 
-    -- Flag se foi cancelado apos inicio de dispensacao (desperdicio operacional)
+    -- Flag se foi cancelado apos inicio de dispensacao (desperdicio operacional).
+    -- Usa dt_inicio_dispensacao (19,32% preenchido em cancelados) — NAO dt_disp_farmacia
+    -- (que e quando a dispensacao concluiu, nao quando comecou).
+    -- Validado pela Camada 7 em 2026-04-19 (DIFF-001): com dt_disp_farmacia disparava 33 lotes;
+    -- com dt_inicio_dispensacao dispara ~31.891 (correto).
   , CASE
-      WHEN ap_lote.ie_status_lote IN ('C','CA') AND ap_lote.dt_disp_farmacia IS NOT NULL THEN 'S'
+      WHEN ap_lote.ie_status_lote IN ('C','CA') AND ap_lote.dt_inicio_dispensacao IS NOT NULL THEN 'S'
       ELSE 'N'
     END                                                                        AS ie_cancelado_apos_disp
 
