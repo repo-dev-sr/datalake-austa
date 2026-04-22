@@ -1,75 +1,920 @@
-# Silver TASY: CDC conformance + standardization (macros under dbt/macros/)
 version: 2
-
 models:
-  - name: silver_tasy_conta_paciente
-    description: "Silver CONTA_PACIENTE — conformação e padronização sobre bronze_tasy_conta_paciente."
-    tags: ["silver", "tasy", "conta_paciente"]
-    columns:
-      - name: nr_atendimento
-        description: "Chave de negócio (PK lógica)"
-        tests:
-          - not_null
-          - unique
-      - name: process_at
-        description: "Timestamp do último processamento na camada silver"
+- name: silver_tasy_conta_paciente
+  description: Silver CONTA_PACIENTE — conformação e padronização sobre bronze_tasy_conta_paciente.
+  tags:
+  - silver
+  - tasy
+  - conta_paciente
+  columns:
+  - name: nr_atendimento
+    description: Chave de negócio (PK lógica)
+    tests:
+    - not_null
+    - unique
+  - name: process_at
+    description: Timestamp do último processamento na camada silver
+- name: silver_tasy_atendimento_paciente
+  description: Silver ATENDIMENTO_PACIENTE — conformação e padronização sobre bronze_tasy_atendimento_paciente.
+  tags:
+  - silver
+  - tasy
+  - atendimento_paciente
+  columns:
+  - name: nr_atendimento
+    description: Chave de negócio (PK lógica)
+    tests:
+    - not_null
+    - unique
+  - name: process_at
+    description: Timestamp do último processamento na camada silver
+- name: silver_tasy_atend_paciente_unidade
+  description: Silver ATEND_PACIENTE_UNIDADE — padronização sobre bronze_tasy_atend_paciente_unidade.
+  tags:
+  - silver
+  - tasy
+  - atend_paciente_unidade
+  columns:
+  - name: nr_seq_interno
+    description: Chave de negócio (PK lógica)
+    tests:
+    - not_null
+    - unique
+  - name: process_at
+    description: Timestamp do último processamento na camada silver
+- name: silver_tasy_proc_paciente_convenio
+  description: Silver PROC_PACIENTE_CONVENIO — colunas e tratamentos definidos no .sql.
+  tags:
+  - silver
+  - tasy
+  - proc_paciente_convenio
+  columns:
+  - name: nr_seq_procedimento
+    description: Chave de negócio (PK lógica, alinhada ao bronze)
+    tests:
+    - not_null
+    - unique
+  - name: process_at
+    description: Timestamp do último processamento na camada silver
+- name: silver_tasy_proc_paciente_valor
+  description: Silver PROC_PACIENTE_VALOR — conformação e padronização sobre bronze.
+  tags:
+  - silver
+  - tasy
+  - proc_paciente_valor
+  columns:
+  - name: nr_sequencia
+    description: Chave de negócio (PK lógica)
+    tests:
+    - not_null
+    - unique
+  - name: process_at
+    description: Timestamp do último processamento na camada silver
+- name: silver_tasy_procedimento_paciente
+  description: Silver PROCEDIMENTO_PACIENTE — conformação e padronização sobre bronze.
+  tags:
+  - silver
+  - tasy
+  - procedimento_paciente
+  columns:
+  - name: nr_sequencia
+    description: Chave de negócio (PK lógica)
+    tests:
+    - not_null
+    - unique
+  - name: process_at
+    description: Timestamp do último processamento na camada silver
+- name: silver_tasy_ap_lote
+  description: 'Silver - lotes de dispensacao farmaceutica, deduplicados e sem tombstones.
 
-  - name: silver_tasy_atendimento_paciente
-    description: "Silver ATENDIMENTO_PACIENTE — conformação e padronização sobre bronze_tasy_atendimento_paciente."
-    tags: ["silver", "tasy", "atendimento_paciente"]
-    columns:
-      - name: nr_atendimento
-        description: "Chave de negócio (PK lógica)"
-        tests:
-          - not_null
-          - unique
-      - name: process_at
-        description: "Timestamp do último processamento na camada silver"
+    Fonte: bronze_tasy_ap_lote
 
-  - name: silver_tasy_atend_paciente_unidade
-    description: "Silver ATEND_PACIENTE_UNIDADE — padronização sobre bronze_tasy_atend_paciente_unidade."
-    tags: ["silver", "tasy", "atend_paciente_unidade"]
-    columns:
-      - name: nr_seq_interno
-        description: "Chave de negócio (PK lógica)"
-        tests:
-          - not_null
-          - unique
-      - name: process_at
-        description: "Timestamp do último processamento na camada silver"
+    Grain: 1 lote por turno/setor/prescricao
 
-  - name: silver_tasy_proc_paciente_convenio
-    description: "Silver PROC_PACIENTE_CONVENIO — colunas e tratamentos definidos no .sql."
-    tags: ["silver", "tasy", "proc_paciente_convenio"]
-    columns:
-      - name: nr_seq_procedimento
-        description: "Chave de negócio (PK lógica, alinhada ao bronze)"
-        tests:
-          - not_null
-          - unique
-      - name: process_at
-        description: "Timestamp do último processamento na camada silver"
+    Filtros: NOT _is_deleted apos ROW_NUMBER por (_cdc_ts_ms, __source_txid) DESC
 
-  - name: silver_tasy_proc_paciente_valor
-    description: "Silver PROC_PACIENTE_VALOR — conformação e padronização sobre bronze."
-    tags: ["silver", "tasy", "proc_paciente_valor"]
-    columns:
-      - name: nr_sequencia
-        description: "Chave de negócio (PK lógica)"
-        tests:
-          - not_null
-          - unique
-      - name: process_at
-        description: "Timestamp do último processamento na camada silver"
+    Dominio: farmacia
 
-  - name: silver_tasy_procedimento_paciente
-    description: "Silver PROCEDIMENTO_PACIENTE — conformação e padronização sobre bronze."
-    tags: ["silver", "tasy", "procedimento_paciente"]
-    columns:
-      - name: nr_sequencia
-        description: "Chave de negócio (PK lógica)"
-        tests:
-          - not_null
-          - unique
-      - name: process_at
-        description: "Timestamp do último processamento na camada silver"
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: nr_atendimento
+    tests:
+    - not_null
+  - name: ie_status_lote
+    description: Dominio 2116 TASY - 11 valores (G, A, D, E, R, C, CA, S, CO, RP, ERV)
+    tests:
+    - accepted_values:
+        values:
+        - G
+        - A
+        - D
+        - E
+        - R
+        - C
+        - CA
+        - S
+        - CO
+        - RP
+        - ERV
+        - i
+  - name: dt_geracao_lote
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_ap_lote_item
+  description: 'Silver - itens dispensados dentro de cada lote, deduplicados e sem tombstones.
+
+    Fonte: bronze_tasy_ap_lote_item
+
+    Grain: 1 medicamento/material dentro de 1 lote
+
+    Tratamentos: QT_DISPENSAR < 0 -> NULL; QT_REAL_DISP > 10000 -> NULL
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_seq_lote
+    tests:
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: ie_prescrito
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+  - name: ie_urgente
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_ap_lote_historico
+  description: 'Silver - historico de alteracoes em lotes de dispensacao.
+
+    Fonte: bronze_tasy_ap_lote_historico
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_ap_lote_log
+  description: 'Silver - log detalhado de dispensacao por lote.
+
+    Fonte: bronze_tasy_ap_lote_log
+
+    ATENCAO: volumetria altissima (~82,8M) - filtro incremental obrigatorio.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_medica
+  description: 'Silver - prescricoes medicas (header), deduplicadas e sem tombstones.
+
+    Fonte: bronze_tasy_prescr_medica
+
+    Grain: 1 prescricao medica
+
+    Dominio: farmacia
+
+    Observacoes: dt_liberacao 98,1% preenchido (filtro de rascunho aplicado em Silver Context/Gold)
+
+    '
+  columns:
+  - name: nr_prescricao
+    tests:
+    - unique
+    - not_null
+  - name: nr_atendimento
+    tests:
+    - not_null
+  - name: cd_medico
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_material
+  description: 'Silver - itens da prescricao medica (medicamentos/materiais/dietas), deduplicados.
+
+    Fonte: bronze_tasy_prescr_material
+
+    PK composta: nr_prescricao + nr_sequencia
+
+    Grain: 1 item prescrito
+
+    Tratamentos: QT_DISPENSAR < 0 -> NULL; QT_TOTAL_DISPENSAR > 10000 -> NULL
+
+    Dominio: farmacia
+
+    Observacao: ie_agrupador=1 (Medicamento, 26%) = universo farmacia clinica
+
+    '
+  columns:
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: nr_sequencia
+    tests:
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: ie_suspenso
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+  - name: ie_acm
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_mat_hor
+  description: 'Silver - horarios de administracao de cada item prescrito.
+
+    Fonte: bronze_tasy_prescr_mat_hor
+
+    Grain: 1 horario de administracao
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_medica_compl
+  description: 'Silver - complementos de prescricao medica.
+
+    Fonte: bronze_tasy_prescr_medica_compl
+
+    PK composta: nr_prescricao + nr_sequencia
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: nr_sequencia
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_medica_erro
+  description: 'Silver - erros detectados em prescricoes medicas (base GPT_NAO_CONFORMIDADES_V branch 1).
+
+    Fonte: bronze_tasy_prescr_medica_erro
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: nr_regra
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_medica_interacao
+  description: 'Silver - interacoes medicamentosas detectadas (baixo volume, 572 registros).
+
+    Fonte: bronze_tasy_prescr_medica_interacao
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_procedimento
+  description: 'Silver - procedimentos prescritos (exames, cirurgias).
+
+    Fonte: bronze_tasy_prescr_procedimento
+
+    PK composta: nr_prescricao + nr_sequencia
+
+    Dominio: farmacia
+
+    Observacao: NAO contem medicamentos (esses estao em prescr_material com ie_agrupador=1)
+
+    '
+  columns:
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: nr_sequencia
+    tests:
+    - not_null
+  - name: cd_procedimento
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_proc_hor
+  description: 'Silver - horarios de procedimentos prescritos.
+
+    Fonte: bronze_tasy_prescr_proc_hor
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_proc_status
+  description: 'Silver - auditoria de mudanca de status de itens prescritos.
+
+    Fonte: bronze_tasy_prescr_proc_status
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_proc_material
+  description: 'Silver - materiais por item prescrito.
+
+    Fonte: bronze_tasy_prescr_proc_material
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_proc_etapa
+  description: 'Silver - etapas de procedimentos prescritos.
+
+    Fonte: bronze_tasy_prescr_proc_etapa
+
+    ATENCAO: alta volumetria (6,8M) - filtro incremental obrigatorio.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_prescr_proc_cancel
+  description: 'Silver - cancelamentos de itens prescritos.
+
+    Fonte: bronze_tasy_prescr_proc_cancel
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_material
+  description: 'Silver - cadastro mestre de materiais/medicamentos (dimensao).
+
+    Fonte: bronze_tasy_material
+
+    Grain: 1 material/medicamento
+
+    Observacao: 85% inativos (IE_SITUACAO=''I''). Filtro IE_SITUACAO=''A'' aplicado em Gold
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: cd_material
+    tests:
+    - unique
+    - not_null
+  - name: ds_material
+    tests:
+    - not_null
+  - name: ie_situacao
+    tests:
+    - accepted_values:
+        values:
+        - A
+        - I
+  - name: ie_tipo_material
+    description: 1=Medicamento (89%), 2=Material Hospitalar (7,6%), 3=Dieta, 4=Gasoterapia, 5=Servico, 6=Imobilizado, 0=Outros
+    tests:
+    - accepted_values:
+        values:
+        - '0'
+        - '1'
+        - '2'
+        - '3'
+        - '4'
+        - '5'
+        - '6'
+        - i
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_material_atend_paciente
+  description: 'Silver - cada material/medicamento dispensado por atendimento (faturamento + custo).
+
+    Fonte: bronze_tasy_material_atend_paciente
+
+    Grain: 1 material/medicamento dispensado ao paciente
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_atendimento
+    tests:
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_movimento_estoque
+  description: 'Silver - movimentos fisicos de estoque (entrada, saida, transferencia, producao).
+
+    Fonte: bronze_tasy_movimento_estoque
+
+    Grain: 1 movimento de estoque
+
+    Observacao: 92% = IE_ORIGEM_DOCUMENTO=3 (dispensacao ao paciente)
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_movimento_estoque
+    tests:
+    - unique
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: cd_operacao_estoque
+    tests:
+    - not_null
+  - name: ie_origem_documento
+    description: Dominio 23 TASY - 1=NF, 2=Requisicao, 3=Prescricao (dominante 92%)
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_movimento_estoque_valor
+  description: 'Silver - valorizacao financeira dos movimentos de estoque.
+
+    Fonte: bronze_tasy_movimento_estoque_valor
+
+    PK composta: nr_movimento_estoque + cd_tipo_valor
+
+    Observacao: 99,26% = CD_TIPO_VALOR=7 (Custo medio ponderado)
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_movimento_estoque
+    tests:
+    - not_null
+  - name: cd_tipo_valor
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - '1'
+        - '2'
+        - '4'
+        - '5'
+        - '6'
+        - '7'
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_operacao_estoque
+  description: 'Silver - operacoes de estoque cadastradas (dimensao, 69 registros).
+
+    Fonte: bronze_tasy_operacao_estoque
+
+    Principais: 3=Consumo Paciente, 37=Devolucao Paciente, 7=NF Compra
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: cd_operacao_estoque
+    tests:
+    - unique
+    - not_null
+  - name: ds_operacao_estoque
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_classif_lote_disp_far
+  description: 'Silver - classificacao dos lotes de dispensacao (dimensao, 9 registros).
+
+    Fonte: bronze_tasy_classif_lote_disp_far
+
+    Observacao: contem duplicacoes de cadastro (IDs 4/19, 2/17, 5/20 - agrupar por ds_classificacao)
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: ds_classificacao
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_regra_turno_disp
+  description: 'Silver - turnos de dispensacao (dimensao, 50 registros).
+
+    Fonte: bronze_tasy_regra_turno_disp
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_parametros_farmacia
+  description: 'Silver - parametros de configuracao da farmacia (dimensao, 11 registros).
+
+    Fonte: bronze_tasy_parametros_farmacia
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: cd_estabelecimento
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_status_prescr_farmacia
+  description: 'Silver - status de prescricao na farmacia (dimensao, 4 registros).
+
+    Fonte: bronze_tasy_status_prescr_farmacia
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: cd_status
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_regra_status_farmacia
+  description: 'Silver - regras de status da farmacia (dimensao, 4 registros).
+
+    Fonte: bronze_tasy_regra_status_farmacia
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_regra_consiste_prescr
+  description: 'Silver - regras de consistencia de prescricao (dimensao).
+
+    Fonte: bronze_tasy_regra_consiste_prescr
+
+    Referenciada por PRESCR_MEDICA_ERRO.NR_REGRA
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: ds_regra
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_gpt_hist_analise_plano
+  description: 'Silver - historico de analise do plano terapeutico (63K).
+
+    Fonte: bronze_tasy_gpt_hist_analise_plano
+
+    ALERTA: NR_PRESCRICAO e IE_STATUS_ANALISE_FARM 100% NULL em qualidade.md
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_atendimento
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_gpt_revalidation_events
+  description: 'Silver - eventos de revalidacao do plano terapeutico GPT (2,9M).
+
+    Fonte: bronze_tasy_gpt_revalidation_events
+
+    ATENCAO: reflete revalidacoes automaticas/periodicas, nao intervencoes clinicas reais.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_log_analise_prescr
+  description: 'Silver - log de analise farmaceutica (3K, ~8/dia).
+
+    Fonte: bronze_tasy_log_analise_prescr
+
+    Validar se e o registro real de intervencoes em producao.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    tests:
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_med_avaliacao_paciente
+  description: 'Silver - avaliacoes clinicas dos pacientes.
+
+    Fonte: bronze_tasy_med_avaliacao_paciente
+
+    Tipo 2071 = ''Indicador Farmaceutico'' (base AMH_INDICADOR_FARMA_V).
+
+    ALERTA: 0 registros tipo 2071 em homologacao - validar em producao.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_dispensacao_quimioterapia
+  description: 'Silver - dispensacao oncologica (11K).
+
+    Fonte: bronze_tasy_dispensacao_quimioterapia
+
+    Fluxo proprio para quimioterapia.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_fa_receita_farmacia
+  description: 'Silver - receitas da farmacia ambulatorial (2,7K).
+
+    Fonte: bronze_tasy_fa_receita_farmacia
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_fa_receita_farmacia_item
+  description: 'Silver - itens das receitas ambulatoriais (3,1K).
+
+    Fonte: bronze_tasy_fa_receita_farmacia_item
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_austa_tmp_farm_capa
+  description: 'Silver - customizacao AUSTA - capas/etiquetas (850 registros).
+
+    Fonte: bronze_tasy_austa_tmp_farm_capa
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_austa_tmp_farm_convunid
+  description: 'Silver - customizacao AUSTA - conversao de unidades (745 registros).
+
+    Fonte: bronze_tasy_austa_tmp_farm_convunid
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_austa_tmp_farm_diluicao
+  description: 'Silver - customizacao AUSTA - diluicoes (1.307 registros).
+
+    Fonte: bronze_tasy_austa_tmp_farm_diluicao
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_austa_tmp_farm_reconst
+  description: 'Silver - customizacao AUSTA - reconstituicao (786 registros).
+
+    Fonte: bronze_tasy_austa_tmp_farm_reconst
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null
+- name: silver_tasy_austa_tmp_farm_viaadm
+  description: 'Silver - customizacao AUSTA - vias de administracao (1.112 registros).
+
+    Fonte: bronze_tasy_austa_tmp_farm_viaadm
+
+    Valores observados: VO, IV, IVD, TD, SE.
+
+    Dominio: farmacia
+
+    '
+  columns:
+  - name: nr_sequencia
+    tests:
+    - unique
+    - not_null
+  - name: _silver_processed_at
+    tests:
+    - not_null

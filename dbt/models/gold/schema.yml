@@ -1,326 +1,779 @@
 version: 2
-
-# ══════════════════════════════════════════════════════════════════════════════
-# GOLD — Constellation Schema · Hospital Austa
-# Fonte obrigatória: Silver-Context ({{ ref('{entidade}') }})
-# Engine: Kyuubi/Spark + AWS Glue + Apache Iceberg
-# ══════════════════════════════════════════════════════════════════════════════
-
 models:
+- name: dim_tempo
+  description: 'Dimensão calendário global do lakehouse Austa. Grain: 1 linha = 1 dia. Range padrão: 2010-01-01 a 2030-01-01.
+    Feriados nacionais brasileiros: fixos + móveis (Páscoa via Meeus/Jones/Butcher). Para expandir o range: atualizar dim_tempo_end_date
+    em dbt_project.yml e executar `dbt build --select dim_tempo`. Atenção: ie_mes_atual, ie_ano_atual, ie_data_passada e ie_data_futura
+    são precisos no momento da última execução do dbt — reconstruir periodicamente.
 
-  # ── DIMENSÃO: Tempo (Calendário) ─────────────────────────────────────────────
-  - name: dim_tempo
-    description: >
-      Dimensão calendário global do lakehouse Austa.
-      Grain: 1 linha = 1 dia. Range padrão: 2010-01-01 a 2030-01-01.
-      Feriados nacionais brasileiros: fixos + móveis (Páscoa via Meeus/Jones/Butcher).
-      Para expandir o range: atualizar dim_tempo_end_date em dbt_project.yml e
-      executar `dbt build --select dim_tempo`.
-      Atenção: ie_mes_atual, ie_ano_atual, ie_data_passada e ie_data_futura são
-      precisos no momento da última execução do dbt — reconstruir periodicamente.
-    config:
-      materialized: table
-      tags: ["gold", "calendario", "dimensao_conformada"]
-    columns:
-      - name: sk_data
-        description: "Surrogate key — inteiro YYYYMMDD (ex: 20240115). FK de todos os fatos Gold."
-        tests:
-          - unique
-          - not_null
-      - name: dt_data
-        description: "Data no tipo DATE"
-        tests:
-          - not_null
-      - name: dt_data_iso
-        description: "Data formato ISO: 'YYYY-MM-DD'"
-      - name: dt_data_br
-        description: "Data formato brasileiro: 'DD/MM/YYYY'"
-      - name: nr_dia_mes
-        description: "Número do dia no mês (1–31)"
-      - name: nr_dia_ano
-        description: "Número do dia no ano (1–366)"
-      - name: nr_dia_semana
-        description: "Dia da semana: 1=Domingo, 2=Segunda ... 7=Sábado (padrão Spark/Java)"
-      - name: nm_dia_semana
-        description: "Nome do dia da semana em português (ex: 'Segunda-feira')"
-      - name: nm_dia_semana_abrev
-        description: "Abreviação do dia (ex: 'Seg', 'Ter')"
-      - name: ie_fim_semana
-        description: "TRUE se Sábado ou Domingo"
-      - name: ie_feriado_nacional
-        description: "TRUE se feriado nacional brasileiro (fixo ou móvel)"
-      - name: nm_feriado
-        description: "Nome do feriado nacional (vazio se não for feriado)"
-      - name: ie_dia_util
-        description: "TRUE se dia útil: não é fim de semana E não é feriado nacional"
-      - name: nr_dia_util_seq_mes
-        description: "Sequência cumulativa de dias úteis no mês (1, 2, 3 ...)"
-      - name: nr_total_dias_uteis_mes
-        description: "Total de dias úteis no mês"
-      - name: nr_semana_ano_iso
-        description: "Número da semana ISO (1–53)"
-      - name: nm_ano_semana_iso
-        description: "Ano + semana ISO (ex: '2024-W03')"
-      - name: nr_semana_mes
-        description: "Semana dentro do mês (1–5)"
-      - name: dt_inicio_semana_seg
-        description: "Segunda-feira da semana"
-      - name: dt_fim_semana_dom
-        description: "Domingo da semana"
-      - name: nr_mes
-        description: "Número do mês (1–12)"
-      - name: nm_mes
-        description: "Nome do mês em português (ex: 'Janeiro')"
-      - name: nm_mes_abrev
-        description: "Abreviação do mês (ex: 'Jan')"
-      - name: nm_competencia
-        description: "Competência no formato 'Mmm/AAAA' (ex: 'Jan/2024') — padrão hospitalar"
-      - name: nr_ano_mes
-        description: "Ano e mês como inteiro YYYYMM (ex: 202401)"
-      - name: dt_inicio_mes
-        description: "Primeiro dia do mês"
-      - name: dt_fim_mes
-        description: "Último dia do mês"
-      - name: nr_dias_no_mes
-        description: "Total de dias do mês (28, 29, 30 ou 31)"
-      - name: ie_primeiro_dia_mes
-        description: "TRUE se é o primeiro dia do mês"
-      - name: ie_ultimo_dia_mes
-        description: "TRUE se é o último dia do mês"
-      - name: nr_trimestre
-        description: "Trimestre (1–4)"
-      - name: nm_trimestre
-        description: "Rótulo do trimestre (ex: 'T1 2024')"
-      - name: dt_inicio_trimestre
-        description: "Primeiro dia do trimestre"
-      - name: dt_fim_trimestre
-        description: "Último dia do trimestre"
-      - name: nr_semestre
-        description: "Semestre (1 ou 2)"
-      - name: nm_semestre
-        description: "Rótulo do semestre (ex: 'S1 2024')"
-      - name: dt_inicio_semestre
-        description: "Primeiro dia do semestre"
-      - name: dt_fim_semestre
-        description: "Último dia do semestre"
-      - name: nr_ano
-        description: "Ano (ex: 2024)"
-      - name: nr_ano_fiscal
-        description: "Ano fiscal — igual ao ano calendário no Hospital Austa"
-      - name: dt_inicio_ano
-        description: "01/01 do ano"
-      - name: dt_fim_ano
-        description: "31/12 do ano"
-      - name: ie_ano_bissexto
-        description: "TRUE se o ano é bissexto"
-      - name: ie_mes_atual
-        description: "TRUE se este dia pertence ao mês da última execução dbt"
-      - name: ie_ano_atual
-        description: "TRUE se este dia pertence ao ano da última execução dbt"
-      - name: ie_data_passada
-        description: "TRUE se a data é anterior ao dia da última execução dbt"
-      - name: ie_data_futura
-        description: "TRUE se a data é posterior ao dia da última execução dbt"
-      - name: dt_pascoa_ano
-        description: "Data da Páscoa do ano correspondente (algoritmo Meeus/Jones/Butcher)"
-      - name: _gold_loaded_at
-        description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
+    '
+  config:
+    materialized: table
+    tags:
+    - gold
+    - calendario
+    - dimensao_conformada
+  columns:
+  - name: sk_data
+    description: 'Surrogate key — inteiro YYYYMMDD (ex: 20240115). FK de todos os fatos Gold.'
+    tests:
+    - unique
+    - not_null
+  - name: dt_data
+    description: Data no tipo DATE
+    tests:
+    - not_null
+  - name: dt_data_iso
+    description: 'Data formato ISO: ''YYYY-MM-DD'''
+  - name: dt_data_br
+    description: 'Data formato brasileiro: ''DD/MM/YYYY'''
+  - name: nr_dia_mes
+    description: Número do dia no mês (1–31)
+  - name: nr_dia_ano
+    description: Número do dia no ano (1–366)
+  - name: nr_dia_semana
+    description: 'Dia da semana: 1=Domingo, 2=Segunda ... 7=Sábado (padrão Spark/Java)'
+  - name: nm_dia_semana
+    description: 'Nome do dia da semana em português (ex: ''Segunda-feira'')'
+  - name: nm_dia_semana_abrev
+    description: 'Abreviação do dia (ex: ''Seg'', ''Ter'')'
+  - name: ie_fim_semana
+    description: TRUE se Sábado ou Domingo
+  - name: ie_feriado_nacional
+    description: TRUE se feriado nacional brasileiro (fixo ou móvel)
+  - name: nm_feriado
+    description: Nome do feriado nacional (vazio se não for feriado)
+  - name: ie_dia_util
+    description: 'TRUE se dia útil: não é fim de semana E não é feriado nacional'
+  - name: nr_dia_util_seq_mes
+    description: Sequência cumulativa de dias úteis no mês (1, 2, 3 ...)
+  - name: nr_total_dias_uteis_mes
+    description: Total de dias úteis no mês
+  - name: nr_semana_ano_iso
+    description: Número da semana ISO (1–53)
+  - name: nm_ano_semana_iso
+    description: 'Ano + semana ISO (ex: ''2024-W03'')'
+  - name: nr_semana_mes
+    description: Semana dentro do mês (1–5)
+  - name: dt_inicio_semana_seg
+    description: Segunda-feira da semana
+  - name: dt_fim_semana_dom
+    description: Domingo da semana
+  - name: nr_mes
+    description: Número do mês (1–12)
+  - name: nm_mes
+    description: 'Nome do mês em português (ex: ''Janeiro'')'
+  - name: nm_mes_abrev
+    description: 'Abreviação do mês (ex: ''Jan'')'
+  - name: nm_competencia
+    description: 'Competência no formato ''Mmm/AAAA'' (ex: ''Jan/2024'') — padrão hospitalar'
+  - name: nr_ano_mes
+    description: 'Ano e mês como inteiro YYYYMM (ex: 202401)'
+  - name: dt_inicio_mes
+    description: Primeiro dia do mês
+  - name: dt_fim_mes
+    description: Último dia do mês
+  - name: nr_dias_no_mes
+    description: Total de dias do mês (28, 29, 30 ou 31)
+  - name: ie_primeiro_dia_mes
+    description: TRUE se é o primeiro dia do mês
+  - name: ie_ultimo_dia_mes
+    description: TRUE se é o último dia do mês
+  - name: nr_trimestre
+    description: Trimestre (1–4)
+  - name: nm_trimestre
+    description: 'Rótulo do trimestre (ex: ''T1 2024'')'
+  - name: dt_inicio_trimestre
+    description: Primeiro dia do trimestre
+  - name: dt_fim_trimestre
+    description: Último dia do trimestre
+  - name: nr_semestre
+    description: Semestre (1 ou 2)
+  - name: nm_semestre
+    description: 'Rótulo do semestre (ex: ''S1 2024'')'
+  - name: dt_inicio_semestre
+    description: Primeiro dia do semestre
+  - name: dt_fim_semestre
+    description: Último dia do semestre
+  - name: nr_ano
+    description: 'Ano (ex: 2024)'
+  - name: nr_ano_fiscal
+    description: Ano fiscal — igual ao ano calendário no Hospital Austa
+  - name: dt_inicio_ano
+    description: 01/01 do ano
+  - name: dt_fim_ano
+    description: 31/12 do ano
+  - name: ie_ano_bissexto
+    description: TRUE se o ano é bissexto
+  - name: ie_mes_atual
+    description: TRUE se este dia pertence ao mês da última execução dbt
+  - name: ie_ano_atual
+    description: TRUE se este dia pertence ao ano da última execução dbt
+  - name: ie_data_passada
+    description: TRUE se a data é anterior ao dia da última execução dbt
+  - name: ie_data_futura
+    description: TRUE se a data é posterior ao dia da última execução dbt
+  - name: dt_pascoa_ano
+    description: Data da Páscoa do ano correspondente (algoritmo Meeus/Jones/Butcher)
+  - name: _gold_loaded_at
+    description: Timestamp de carga na camada Gold (America/Sao_Paulo)
+- name: dim_medico
+  description: 'Dimensão Médico — SCD Type 1 provisório. Grain: 1 linha por cd_medico. Inclui registro sentinela (nk_medico
+    = -1) para médicos não informados. Derivada de silver_context.procedimento — migrar para SCD2 quando silver_context.medico
+    estiver disponível. Role-playing: referenciada por fct_producao_medica como sk_medico_solicitante e sk_medico_executor
+    (mesmo modelo, dois papéis).
 
-  # ── DIMENSÃO: Médico ──────────────────────────────────────────────────────────
-  - name: dim_medico
-    description: >
-      Dimensão Médico — SCD Type 1 provisório.
-      Grain: 1 linha por cd_medico. Inclui registro sentinela (nk_medico = -1) para
-      médicos não informados. Derivada de silver_context.procedimento — migrar para
-      SCD2 quando silver_context.medico estiver disponível.
-      Role-playing: referenciada por fct_producao_medica como sk_medico_solicitante
-      e sk_medico_executor (mesmo modelo, dois papéis).
-    config:
-      materialized: table
-      tags: ["gold", "tasy", "medico", "dimensao_conformada"]
-    columns:
-      - name: sk_medico
-        description: "Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_medico])"
-        tests:
-          - unique
-          - not_null
-      - name: nk_medico
-        description: "Natural key — cd_medico do Tasy (-1 = desconhecido)"
-        tests:
-          - not_null
-      - name: cd_especialidade
-        description: "Código da especialidade médica"
-      - name: ie_medico_desconhecido
-        description: "TRUE para o registro sentinela (cd_medico = -1)"
-      - name: _gold_loaded_at
-        description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
+    '
+  config:
+    materialized: table
+    tags:
+    - gold
+    - tasy
+    - medico
+    - dimensao_conformada
+  columns:
+  - name: sk_medico
+    description: Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_medico])
+    tests:
+    - unique
+    - not_null
+  - name: nk_medico
+    description: Natural key — cd_medico do Tasy (-1 = desconhecido)
+    tests:
+    - not_null
+  - name: cd_especialidade
+    description: Código da especialidade médica
+  - name: ie_medico_desconhecido
+    description: TRUE para o registro sentinela (cd_medico = -1)
+  - name: _gold_loaded_at
+    description: Timestamp de carga na camada Gold (America/Sao_Paulo)
+- name: dim_procedimento
+  description: 'Dimensão Procedimento — SCD Type 1. Grain: 1 linha por cd_procedimento. Estado mais recente via _context_processed_at.
+    Fonte: silver_context.procedimento. Descrição do procedimento vem do convênio de parametrização (pode variar entre convênios
+    — usa a última registrada).
 
-  # ── DIMENSÃO: Procedimento ───────────────────────────────────────────────────
-  - name: dim_procedimento
-    description: >
-      Dimensão Procedimento — SCD Type 1.
-      Grain: 1 linha por cd_procedimento. Estado mais recente via _context_processed_at.
-      Fonte: silver_context.procedimento. Descrição do procedimento vem do convênio
-      de parametrização (pode variar entre convênios — usa a última registrada).
-    config:
-      materialized: table
-      tags: ["gold", "tasy", "procedimento", "dimensao_conformada"]
-    columns:
-      - name: sk_procedimento
-        description: "Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_procedimento])"
-        tests:
-          - unique
-          - not_null
-      - name: nk_procedimento
-        description: "Natural key — cd_procedimento do Tasy"
-        tests:
-          - not_null
-      - name: ds_procedimento
-        description: "Descrição do procedimento (mais recente via _context_processed_at)"
-      - name: cd_grupo
-        description: "Grupo do procedimento no convênio"
-      - name: cd_tabela_servico
-        description: "Tabela de serviço"
-      - name: cd_tabela_custo
-        description: "Tabela de custo"
-      - name: _gold_loaded_at
-        description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
+    '
+  config:
+    materialized: table
+    tags:
+    - gold
+    - tasy
+    - procedimento
+    - dimensao_conformada
+  columns:
+  - name: sk_procedimento
+    description: Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_procedimento])
+    tests:
+    - unique
+    - not_null
+  - name: nk_procedimento
+    description: Natural key — cd_procedimento do Tasy
+    tests:
+    - not_null
+  - name: ds_procedimento
+    description: Descrição do procedimento (mais recente via _context_processed_at)
+  - name: cd_grupo
+    description: Grupo do procedimento no convênio
+  - name: cd_tabela_servico
+    description: Tabela de serviço
+  - name: cd_tabela_custo
+    description: Tabela de custo
+  - name: _gold_loaded_at
+    description: Timestamp de carga na camada Gold (America/Sao_Paulo)
+- name: dim_convenio
+  description: 'Dimensão Convênio — SCD Type 1 provisório. Grain: 1 linha por cd_convenio. Estado mais recente via _context_processed_at.
+    Fonte: silver_context.procedimento. Migrar para SCD2 quando silver_context.convenio estiver disponível com atributos descritivos
+    (nome, tipo, CNPJ, etc.).
 
-  # ── DIMENSÃO: Convênio ───────────────────────────────────────────────────────
-  - name: dim_convenio
-    description: >
-      Dimensão Convênio — SCD Type 1 provisório.
-      Grain: 1 linha por cd_convenio. Estado mais recente via _context_processed_at.
-      Fonte: silver_context.procedimento. Migrar para SCD2 quando silver_context.convenio
-      estiver disponível com atributos descritivos (nome, tipo, CNPJ, etc.).
-    config:
-      materialized: table
-      tags: ["gold", "tasy", "convenio", "dimensao_conformada"]
-    columns:
-      - name: sk_convenio
-        description: "Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_convenio])"
-        tests:
-          - unique
-          - not_null
-      - name: nk_convenio
-        description: "Natural key — cd_convenio do Tasy"
-        tests:
-          - not_null
-      - name: cd_grupo
-        description: "Grupo do convênio"
-      - name: _gold_loaded_at
-        description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
+    '
+  config:
+    materialized: table
+    tags:
+    - gold
+    - tasy
+    - convenio
+    - dimensao_conformada
+  columns:
+  - name: sk_convenio
+    description: Surrogate key — gerada via dbt_utils.generate_surrogate_key([cd_convenio])
+    tests:
+    - unique
+    - not_null
+  - name: nk_convenio
+    description: Natural key — cd_convenio do Tasy
+    tests:
+    - not_null
+  - name: cd_grupo
+    description: Grupo do convênio
+  - name: _gold_loaded_at
+    description: Timestamp de carga na camada Gold (America/Sao_Paulo)
+- name: fct_producao_medica
+  description: 'Fato de Produtividade Médica — Grain: 1 linha = 1 procedimento realizado. PK natural: nr_sequencia (PROC_PACIENTE
+    do Tasy). Fonte: silver_context.procedimento. Constellation: compartilha dim_tempo, dim_medico (role-playing: solicitante
+    e executor), dim_procedimento e dim_convenio com demais fatos Gold. dim_paciente pendente: nk_paciente preservado como
+    natural key até silver_context.paciente estar disponível. ⚠️  Filtro _is_deleted: não aplicado — silver_context.procedimento
+    não expõe o campo. Incluir após silver_context expor _is_deleted do upstream silver.
 
-  # ── FATO: Produtividade Médica ────────────────────────────────────────────────
-  - name: fct_producao_medica
-    description: >
-      Fato de Produtividade Médica — Grain: 1 linha = 1 procedimento realizado.
-      PK natural: nr_sequencia (PROC_PACIENTE do Tasy). Fonte: silver_context.procedimento.
-      Constellation: compartilha dim_tempo, dim_medico (role-playing: solicitante e executor),
-      dim_procedimento e dim_convenio com demais fatos Gold.
-      dim_paciente pendente: nk_paciente preservado como natural key até silver_context.paciente
-      estar disponível.
-      ⚠️  Filtro _is_deleted: não aplicado — silver_context.procedimento não expõe o campo.
-      Incluir após silver_context expor _is_deleted do upstream silver.
-    config:
-      materialized: incremental
-      unique_key: sk_producao
-      on_schema_change: sync_all_columns
-      tags: ["gold", "tasy", "producao_medica"]
-    columns:
-      - name: sk_producao
-        description: "Surrogate key da fato — gerada via dbt_utils.generate_surrogate_key([nr_sequencia])"
-        tests:
-          - unique
-          - not_null
-      - name: sk_data
-        description: >
-          FK para dim_tempo (formato YYYYMMDD inteiro).
-          NULL quando dt_procedimento é data sentinela (1900-01-01 do standardize_date).
-        tests:
-          - not_null:
-              where: "dt_procedimento_raw != '1900-01-01'"
-          - relationships:
-              to: ref('dim_tempo')
-              field: sk_data
-              where: "sk_data IS NOT NULL"
-      - name: sk_medico_solicitante
-        description: "FK para dim_medico — médico que solicitou o procedimento"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_medico')
-              field: sk_medico
-      - name: sk_medico_executor
-        description: "FK para dim_medico — médico que executou o procedimento (role-playing)"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_medico')
-              field: sk_medico
-      - name: sk_procedimento
-        description: "FK para dim_procedimento"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_procedimento')
-              field: sk_procedimento
-      - name: sk_convenio
-        description: "FK para dim_convenio"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_convenio')
-              field: sk_convenio
-      - name: nk_sequencia_procedimento
-        description: "Natural key — nr_sequencia do Tasy PROC_PACIENTE"
-        tests:
-          - not_null
-      - name: nk_atendimento
-        description: "Natural key — nr_atendimento (degenerate dimension)"
-      - name: nk_paciente
-        description: "Natural key — cd_pessoa_fisica. FK futura → dim_paciente (pendente)"
-      - name: nk_medico_solicitante
-        description: "Natural key — cd_medico solicitante"
-      - name: nk_medico_executor
-        description: "Natural key — cd_medico_executor"
-      - name: nk_procedimento
-        description: "Natural key — cd_procedimento"
-      - name: nk_convenio
-        description: "Natural key — cd_convenio"
-      - name: atend_ie_tipo_atendimento
-        description: "Tipo de atendimento do contexto (dimensão degenerada)"
-      - name: atend_ie_clinica
-        description: "Clínica do atendimento (dimensão degenerada)"
-      - name: ie_funcao_medico
-        description: "Função do médico no procedimento"
-      - name: ie_origem_proced
-        description: "Origem do procedimento"
-      - name: cd_setor_atendimento
-        description: "Setor/unidade onde o procedimento foi realizado"
-      - name: cd_especialidade
-        description: "Especialidade médica no momento do procedimento"
-      - name: qt_procedimento
-        description: "Quantidade de procedimentos realizados — métrica aditiva"
-      - name: vl_procedimento
-        description: "Valor total do procedimento — métrica aditiva"
-      - name: vl_medico
-        description: "Valor do honorário médico — métrica aditiva"
-      - name: vl_anestesista
-        description: "Valor do honorário do anestesista — métrica aditiva"
-      - name: vl_materiais
-        description: "Valor dos materiais utilizados — métrica aditiva"
-      - name: vl_auxiliares
-        description: "Valor dos auxiliares — métrica aditiva"
-      - name: vl_custo_operacional
-        description: "Custo operacional do procedimento — métrica aditiva"
-      - name: vl_repasse_calc
-        description: "Valor de repasse calculado — métrica aditiva"
-      - name: nr_minuto_duracao
-        description: >
-          ⚠️ Métrica semi-aditiva — duração do procedimento em minutos.
-          Somar apenas dentro do mesmo nr_sequencia (1 linha = 1 procedimento).
-          Ao agregar por médico ou dia, procedimentos sobrepostos podem causar
-          dupla contagem do tempo. Use SUM com atenção ou AVG para comparações.
-      - name: _gold_loaded_at
-        description: "Timestamp de carga na camada Gold (America/Sao_Paulo)"
+    '
+  config:
+    materialized: incremental
+    unique_key: sk_producao
+    on_schema_change: sync_all_columns
+    tags:
+    - gold
+    - tasy
+    - producao_medica
+  columns:
+  - name: sk_producao
+    description: Surrogate key da fato — gerada via dbt_utils.generate_surrogate_key([nr_sequencia])
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    description: 'FK para dim_tempo (formato YYYYMMDD inteiro). NULL quando dt_procedimento é data sentinela (1900-01-01 do
+      standardize_date).
+
+      '
+    tests:
+    - not_null:
+        where: dt_procedimento_raw != '1900-01-01'
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+        where: sk_data IS NOT NULL
+  - name: sk_medico_solicitante
+    description: FK para dim_medico — médico que solicitou o procedimento
+    tests:
+    - not_null
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: sk_medico_executor
+    description: FK para dim_medico — médico que executou o procedimento (role-playing)
+    tests:
+    - not_null
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: sk_procedimento
+    description: FK para dim_procedimento
+    tests:
+    - not_null
+    - relationships:
+        to: ref('dim_procedimento')
+        field: sk_procedimento
+  - name: sk_convenio
+    description: FK para dim_convenio
+    tests:
+    - not_null
+    - relationships:
+        to: ref('dim_convenio')
+        field: sk_convenio
+  - name: nk_sequencia_procedimento
+    description: Natural key — nr_sequencia do Tasy PROC_PACIENTE
+    tests:
+    - not_null
+  - name: nk_atendimento
+    description: Natural key — nr_atendimento (degenerate dimension)
+  - name: nk_paciente
+    description: Natural key — cd_pessoa_fisica. FK futura → dim_paciente (pendente)
+  - name: nk_medico_solicitante
+    description: Natural key — cd_medico solicitante
+  - name: nk_medico_executor
+    description: Natural key — cd_medico_executor
+  - name: nk_procedimento
+    description: Natural key — cd_procedimento
+  - name: nk_convenio
+    description: Natural key — cd_convenio
+  - name: atend_ie_tipo_atendimento
+    description: Tipo de atendimento do contexto (dimensão degenerada)
+  - name: atend_ie_clinica
+    description: Clínica do atendimento (dimensão degenerada)
+  - name: ie_funcao_medico
+    description: Função do médico no procedimento
+  - name: ie_origem_proced
+    description: Origem do procedimento
+  - name: cd_setor_atendimento
+    description: Setor/unidade onde o procedimento foi realizado
+  - name: cd_especialidade
+    description: Especialidade médica no momento do procedimento
+  - name: qt_procedimento
+    description: Quantidade de procedimentos realizados — métrica aditiva
+  - name: vl_procedimento
+    description: Valor total do procedimento — métrica aditiva
+  - name: vl_medico
+    description: Valor do honorário médico — métrica aditiva
+  - name: vl_anestesista
+    description: Valor do honorário do anestesista — métrica aditiva
+  - name: vl_materiais
+    description: Valor dos materiais utilizados — métrica aditiva
+  - name: vl_auxiliares
+    description: Valor dos auxiliares — métrica aditiva
+  - name: vl_custo_operacional
+    description: Custo operacional do procedimento — métrica aditiva
+  - name: vl_repasse_calc
+    description: Valor de repasse calculado — métrica aditiva
+  - name: nr_minuto_duracao
+    description: '⚠️ Métrica semi-aditiva — duração do procedimento em minutos. Somar apenas dentro do mesmo nr_sequencia
+      (1 linha = 1 procedimento). Ao agregar por médico ou dia, procedimentos sobrepostos podem causar dupla contagem do tempo.
+      Use SUM com atenção ou AVG para comparações.
+
+      '
+  - name: _gold_loaded_at
+    description: Timestamp de carga na camada Gold (America/Sao_Paulo)
+- name: gold_dim_medicamento
+  description: 'Dimensão conformada de medicamento/material (SCD1).
+
+    Grain: 1 linha = 1 material do catálogo TASY (cd_material).
+
+    Fonte: silver_context.material.
+
+    Usada por: gold_fct_volume_dispensacao, gold_fct_consumo_atendimento, gold_fct_dispensacao_estoque.
+
+    '
+  columns:
+  - name: sk_medicamento
+    description: Surrogate key (hash de cd_material via dbt_utils.generate_surrogate_key).
+    tests:
+    - unique
+    - not_null
+  - name: nk_medicamento
+    description: Natural key — cd_material original do TASY.
+    tests:
+    - unique
+    - not_null
+  - name: ds_material
+    description: Descrição do material.
+  - name: ds_principio_ativo
+    description: Princípio ativo (medicamentos).
+  - name: ie_medicamento
+    description: Flag medicamento (S/N).
+  - name: ie_controlado
+    description: Flag controlado (Portaria 344).
+  - name: ie_alto_risco
+    description: Flag medicamento de alto risco (ISMP).
+  - name: ie_antibiotico
+    description: Flag antibiótico.
+  - name: ie_quimioterapico
+    description: Flag quimioterápico.
+  - name: ie_ativo
+    description: S/N — convém filtrar ie_ativo='S' em dashboards de catálogo vigente.
+  - name: ie_categoria_funcional
+    description: 'Categoria funcional derivada em Silver-Context:
+
+      quimioterapico, antibiotico, controlado, alto_risco, medicamento_comum,
+
+      material_hospitalar, servico, outro.
+
+      '
+  - name: _gold_loaded_at
+    description: Timestamp de carga no Gold (America/Sao_Paulo).
+    tests:
+    - not_null
+- name: gold_fct_sla_dispensacao
+  description: 'Fato — SLA de dispensação de lotes com ciclo completo.
+
+    Grain: 1 linha = 1 lote AP_LOTE com ie_status_lote = ''R''.
+
+    Consumo: dashboard operacional farmácia, alerta WhatsApp VERMELHO (>720min), FHIR Observation.
+
+    Origem: silver_context.dispensacao.
+
+    '
+  columns:
+  - name: sk_sla_dispensacao
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    description: FK → dim_tempo.sk_data (YYYYMMDD int); NULL para dt_geracao_lote sentinela.
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: nk_lote
+    tests:
+    - unique
+    - not_null
+  - name: ie_nivel_alerta_sla
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - VERDE
+        - AMARELO
+        - VERMELHO
+        - SEM_DADO
+  - name: qt_min_total_ciclo
+    description: Minutos do ciclo completo G→A→D→E→R. Aditivo.
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_cancelamento_lote
+  description: 'Fato — lotes cancelados ou suspensos.
+
+    Grain: 1 linha = 1 lote AP_LOTE com ie_status_lote IN (''C'',''CA'',''S'').
+
+    Cobre taxa de cancelamento e desperdício operacional (cancelado APÓS início).
+
+    Benchmark observado: 23,1% cancelamento; 22,3% desses com trabalho já iniciado.
+
+    Origem: silver_context.dispensacao.
+
+    '
+  columns:
+  - name: sk_cancelamento_lote
+    tests:
+    - unique
+    - not_null
+  - name: sk_data_geracao
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_data_cancelamento
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: nk_lote
+    tests:
+    - unique
+    - not_null
+  - name: ie_status_lote
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - C
+        - CA
+        - S
+  - name: ie_nivel_alerta_cancel
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - DESPERDICIO
+        - CANCELADO_PREVENTIVO
+        - SUSPENSO
+        - OUTRO
+  - name: qt_min_ger_cancel
+    description: '⚠️ Semi-aditiva: somar apenas dentro do mesmo lote. Em agregações por setor/mês usar AVG/MEDIAN.
+
+      '
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_prescricao_medicamento
+  description: 'Fato — universo de prescrições médicas liberadas (cabeçalho + itens agregados).
+
+    Grain: 1 linha = 1 prescrição PRESCR_MEDICA com dt_liberacao e filtros de negócio aplicados.
+
+    Filtros já em Silver-Context: dt_liberacao IS NOT NULL; cd_funcao_origem NOT IN (924, 950).
+
+    Origem: silver_context.prescricao.
+
+    '
+  columns:
+  - name: sk_prescricao
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medico
+    tests:
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: nk_prescricao
+    tests:
+    - unique
+    - not_null
+  - name: qt_medicamentos
+    description: Contagem de itens tipo medicamento (ie_agrupador=1). Aditiva.
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_volume_dispensacao
+  description: 'Fato — volume dispensado por item/lote.
+
+    Grain: 1 linha = 1 item AP_LOTE_ITEM com lote em (''D'',''E'',''R'') e qt_dispensada > 0.
+
+    Exclusões: qt_dispensada <= 0 (52 negativos observados — regras_negocio.md).
+
+    Origem: silver_context.item_dispensacao.
+
+    '
+  columns:
+  - name: sk_volume_dispensacao
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medicamento
+    tests:
+    - relationships:
+        to: ref('gold_dim_medicamento')
+        field: sk_medicamento
+  - name: nk_item_dispensacao
+    tests:
+    - unique
+    - not_null
+  - name: qt_dispensada
+    description: Quantidade dispensada. Aditiva.
+  - name: ie_classificacao_clinica
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - ALTO_RISCO
+        - QUIMIOTERAPICO
+        - CONTROLADO
+        - ANTIBIOTICO
+        - COMUM
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_cobertura_dispensacao
+  description: 'Fato — cobertura lote vs dispensação direta por prescrição.
+
+    Grain: 1 linha = 1 prescrição com ie_tem_medicamento=''S''.
+
+    Benchmark (regras_negocio.md §22.6): 78,44% via lote; 21,56% direta.
+
+    Origem: silver_context.prescricao + silver_context.item_dispensacao.
+
+    '
+  columns:
+  - name: sk_cobertura
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medico
+    tests:
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: nk_prescricao
+    tests:
+    - unique
+    - not_null
+  - name: pct_cobertura_lote
+    description: '⚠️ Não-aditiva. Recalcular em agregações como:
+
+      SUM(qt_itens_dispensados_via_lote) * 100.0 / NULLIF(SUM(qt_medicamentos_prescritos), 0).
+
+      '
+  - name: ie_nivel_cobertura
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - SEM_LOTE
+        - COBERTURA_PARCIAL
+        - COBERTURA_TOTAL
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_erro_prescricao
+  description: 'Fato — erros de prescrição detectados por regras de consistência.
+
+    Grain: 1 linha = 1 erro PRESCR_MEDICA_ERRO.
+
+    Origem: silver_context.erro_prescricao.
+
+    '
+  columns:
+  - name: sk_erro_prescricao
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_data_resolucao
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medico
+    tests:
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: nk_erro
+    tests:
+    - unique
+    - not_null
+  - name: ie_nivel_alerta_erro
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - CRITICO_PENDENTE
+        - PENDENTE
+        - RESOLUCAO_TARDIA
+        - RESOLVIDO
+  - name: qt_dias_resolucao
+    description: '⚠️ Semi-aditiva: somar apenas dentro do mesmo erro. Em agregações usar AVG/MEDIAN.
+
+      '
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_analise_farmaceutica
+  description: 'Fato — análises / intervenções farmacêuticas (farmácia clínica).
+
+    Grain: 1 linha = 1 registro LOG_ANALISE_PRESCR.
+
+    Observação: volume baixo (~8/dia em homologação).
+
+    Origem: silver_context.analise_farmaceutica.
+
+    '
+  columns:
+  - name: sk_analise_farmaceutica
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medico
+    tests:
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: nk_analise
+    tests:
+    - unique
+    - not_null
+  - name: ie_nivel_alerta_analise
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - INTERVENCAO_RECUSADA
+        - INTERVENCAO_ACEITA
+        - INTERVENCAO_SEM_RESULTADO
+        - SEM_INTERVENCAO
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_consumo_atendimento
+  description: 'Fato — consumo de material/medicamento por atendimento (custo, cobrança, margem).
+
+    Grain: 1 linha = 1 registro MATERIAL_ATEND_PACIENTE.
+
+    Origem: silver_context.consumo_material.
+
+    '
+  columns:
+  - name: sk_consumo_atendimento
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medico
+    tests:
+    - relationships:
+        to: ref('dim_medico')
+        field: sk_medico
+  - name: sk_convenio
+    tests:
+    - relationships:
+        to: ref('dim_convenio')
+        field: sk_convenio
+  - name: sk_medicamento
+    tests:
+    - relationships:
+        to: ref('gold_dim_medicamento')
+        field: sk_medicamento
+  - name: nk_consumo
+    tests:
+    - unique
+    - not_null
+  - name: vl_margem_bruta
+    description: vl_convenio − vl_custo_medio. Aditiva — SUM ignora NULL.
+  - name: pr_desconto
+    description: '⚠️ Não-aditiva. Recalcular como média ponderada em agregações.
+
+      '
+  - name: ie_nivel_alerta_margem
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - SEM_VALORIZACAO
+        - MARGEM_NEGATIVA
+        - MARGEM_ZERO
+        - MARGEM_POSITIVA
+  - name: _gold_loaded_at
+    tests:
+    - not_null
+- name: gold_fct_dispensacao_estoque
+  description: 'Fato — movimento de estoque valorizado para dispensação ao paciente.
+
+    Grain: 1 linha = 1 registro MOVIMENTO_ESTOQUE (ie_tipo_funcional=''dispensacao_paciente'').
+
+    Escopo: ie_origem_documento=''3'' + cd_operacao_estoque=3 (92% dos movimentos).
+
+    Benchmark (regras_negocio.md §22.5): 99,71% de cobertura AP_LOTE → MOVIMENTO_ESTOQUE.
+
+    Origem: silver_context.movimento_estoque.
+
+    '
+  columns:
+  - name: sk_dispensacao_estoque
+    tests:
+    - unique
+    - not_null
+  - name: sk_data
+    tests:
+    - relationships:
+        to: ref('dim_tempo')
+        field: sk_data
+  - name: sk_medicamento
+    tests:
+    - relationships:
+        to: ref('gold_dim_medicamento')
+        field: sk_medicamento
+  - name: nk_movimento_estoque
+    tests:
+    - unique
+    - not_null
+  - name: vl_movimento_custo
+    description: Custo médio ponderado (cd_tipo_valor=7). Aditivo. 0,74% podem ser NULL.
+  - name: ie_nivel_alerta_movimento
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - SEM_VALORIZACAO
+        - VALOR_ZERO
+        - CONTROLADO
+        - NORMAL
+  - name: _gold_loaded_at
+    tests:
+    - not_null

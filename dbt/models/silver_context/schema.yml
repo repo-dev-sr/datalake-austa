@@ -1,142 +1,438 @@
-# Silver-Context: joins entre entidades silver — sem deduplicação.
-# Grão preservado da entidade primária. Enriquecimento via LEFT JOIN.
 version: 2
-
 models:
-  - name: atendimento
-    description: >
-      Visão unificada do atendimento assistencial com sua contrapartida financeira.
-      Join 1:1 entre silver_tasy_atendimento_paciente e silver_tasy_conta_paciente
-      via nr_atendimento. Grão: 1 linha por atendimento.
-      Colunas passam pelos mesmos macros da silver (sentinelas -1, 'i', 'indefinido', datas 1900, etc.),
-      inclusive quando o LEFT JOIN à conta não encontra linha.
-    tags: ["silver_context", "tasy", "atendimento"]
-    columns:
-      - name: nr_atendimento
-        description: "PK — número do atendimento (chave compartilhada atendimento ↔ conta)"
-        tests:
-          - not_null
-          - unique
-      - name: cd_pessoa_fisica
-        description: "Código da pessoa física (paciente)"
-      - name: ie_tipo_atendimento
-        description: "Tipo de atendimento (internação, ambulatório, PA, etc.)"
-      - name: dt_entrada
-        description: "Data/hora de entrada do paciente"
-      - name: dt_alta
-        description: "Data/hora de alta do paciente"
-      - name: ie_status_atendimento
-        description: "Status atual do atendimento"
-      - name: cd_medico_resp
-        description: "Código do médico responsável pelo atendimento"
-      - name: ie_clinica
-        description: "Clínica do atendimento"
-      - name: vl_conta
-        description: "Valor total da conta (proveniente de conta_paciente)"
-      - name: ie_status
-        description: "Status da conta (proveniente de conta_paciente)"
-      - name: conta_cd_estabelecimento
-        description: "Estabelecimento na conta (conta_paciente); distinto de cd_estabelecimento do atendimento"
-      - name: cd_convenio_parametro
-        description: "Convênio de parametrização da conta"
-      - name: ie_complexidade
-        description: "Complexidade da conta (proveniente de conta_paciente)"
-      - name: _context_processed_at
-        description: "Timestamp de processamento na camada silver_context"
+- name: atendimento
+  description: 'Visão unificada do atendimento assistencial com sua contrapartida financeira. Join 1:1 entre silver_tasy_atendimento_paciente
+    e silver_tasy_conta_paciente via nr_atendimento. Grão: 1 linha por atendimento. Colunas passam pelos mesmos macros da
+    silver (sentinelas -1, ''i'', ''indefinido'', datas 1900, etc.), inclusive quando o LEFT JOIN à conta não encontra linha.
 
-  - name: procedimento
-    description: >
-      Procedimento realizado enriquecido com descrição do convênio
-      (proc_paciente_convenio) e contexto assistencial do atendimento.
-      Join: silver_tasy_procedimento_paciente ← proc_paciente_convenio (1:1)
-      ← atendimento_paciente (N:1). Grão: 1 linha por procedimento.
-      Tratamento de nulos alinhado à silver nos joins (convênio e atendimento).
-    tags: ["silver_context", "tasy", "procedimento"]
-    columns:
-      - name: nr_sequencia
-        description: "PK — sequência única do procedimento"
-        tests:
-          - not_null
-          - unique
-      - name: nr_atendimento
-        description: "FK para o atendimento (join com atendimento_paciente)"
-        tests:
-          - not_null
-      - name: cd_procedimento
-        description: "Código do procedimento"
-      - name: ds_procedimento
-        description: "Descrição do procedimento (proveniente de proc_paciente_convenio)"
-      - name: cd_medico
-        description: "Código do médico solicitante"
-      - name: cd_medico_executor
-        description: "Código do médico executor"
-      - name: cd_convenio
-        description: "Código do convênio"
-      - name: cd_especialidade
-        description: "Código da especialidade médica"
-      - name: vl_procedimento
-        description: "Valor total do procedimento"
-      - name: cd_grupo
-        description: "Grupo do procedimento no convênio (proveniente de proc_paciente_convenio)"
-      - name: atend_ie_tipo_atendimento
-        description: "Tipo de atendimento do contexto (internação, ambulatório, PA, etc.)"
-      - name: atend_ie_clinica
-        description: "Clínica do atendimento (contexto)"
-      - name: _context_processed_at
-        description: "Timestamp de processamento na camada silver_context"
+    '
+  tags:
+  - silver_context
+  - tasy
+  - atendimento
+  columns:
+  - name: nr_atendimento
+    description: PK — número do atendimento (chave compartilhada atendimento ↔ conta)
+    tests:
+    - not_null
+    - unique
+  - name: cd_pessoa_fisica
+    description: Código da pessoa física (paciente)
+  - name: ie_tipo_atendimento
+    description: Tipo de atendimento (internação, ambulatório, PA, etc.)
+  - name: dt_entrada
+    description: Data/hora de entrada do paciente
+  - name: dt_alta
+    description: Data/hora de alta do paciente
+  - name: ie_status_atendimento
+    description: Status atual do atendimento
+  - name: cd_medico_resp
+    description: Código do médico responsável pelo atendimento
+  - name: ie_clinica
+    description: Clínica do atendimento
+  - name: vl_conta
+    description: Valor total da conta (proveniente de conta_paciente)
+  - name: ie_status
+    description: Status da conta (proveniente de conta_paciente)
+  - name: conta_cd_estabelecimento
+    description: Estabelecimento na conta (conta_paciente); distinto de cd_estabelecimento do atendimento
+  - name: cd_convenio_parametro
+    description: Convênio de parametrização da conta
+  - name: ie_complexidade
+    description: Complexidade da conta (proveniente de conta_paciente)
+  - name: _context_processed_at
+    description: Timestamp de processamento na camada silver_context
+- name: procedimento
+  description: 'Procedimento realizado enriquecido com descrição do convênio (proc_paciente_convenio) e contexto assistencial
+    do atendimento. Join: silver_tasy_procedimento_paciente ← proc_paciente_convenio (1:1) ← atendimento_paciente (N:1). Grão:
+    1 linha por procedimento. Tratamento de nulos alinhado à silver nos joins (convênio e atendimento).
 
-  - name: movimentacao_paciente
-    description: >
-      Registro de passagem do paciente por unidade assistencial, enriquecido
-      com contexto do atendimento. Join: silver_tasy_atend_paciente_unidade
-      ← atendimento_paciente (N:1). Grão: 1 linha por passagem em unidade.
-      Tratamento de nulos alinhado à silver no contexto de atendimento.
-    tags: ["silver_context", "tasy", "movimentacao_paciente"]
-    columns:
-      - name: nr_seq_interno
-        description: "PK — sequência interna da passagem por unidade"
-        tests:
-          - not_null
-          - unique
-      - name: nr_atendimento
-        description: "FK para o atendimento"
-        tests:
-          - not_null
-      - name: cd_setor_atendimento
-        description: "Setor/unidade assistencial"
-      - name: dh_entrada_unidade
-        description: "Data/hora de entrada na unidade"
-      - name: dh_saida_unidade
-        description: "Data/hora de saída da unidade"
-      - name: cd_tipo_acomodacao
-        description: "Tipo de acomodação (leito, enfermaria, apartamento, etc.)"
-      - name: cd_departamento
-        description: "Departamento da unidade"
-      - name: nr_seq_motivo_transf
-        description: "Motivo da transferência entre unidades"
-      - name: atend_cd_pessoa_fisica
-        description: "Código do paciente (contexto do atendimento)"
-      - name: atend_ie_tipo_atendimento
-        description: "Tipo de atendimento (contexto — internação, ambulatório, PA, etc.)"
-      - name: atend_ie_clinica
-        description: "Clínica do atendimento (contexto)"
-      - name: _context_processed_at
-        description: "Timestamp de processamento na camada silver_context"
+    '
+  tags:
+  - silver_context
+  - tasy
+  - procedimento
+  columns:
+  - name: nr_sequencia
+    description: PK — sequência única do procedimento
+    tests:
+    - not_null
+    - unique
+  - name: nr_atendimento
+    description: FK para o atendimento (join com atendimento_paciente)
+    tests:
+    - not_null
+  - name: cd_procedimento
+    description: Código do procedimento
+  - name: ds_procedimento
+    description: Descrição do procedimento (proveniente de proc_paciente_convenio)
+  - name: cd_medico
+    description: Código do médico solicitante
+  - name: cd_medico_executor
+    description: Código do médico executor
+  - name: cd_convenio
+    description: Código do convênio
+  - name: cd_especialidade
+    description: Código da especialidade médica
+  - name: vl_procedimento
+    description: Valor total do procedimento
+  - name: cd_grupo
+    description: Grupo do procedimento no convênio (proveniente de proc_paciente_convenio)
+  - name: atend_ie_tipo_atendimento
+    description: Tipo de atendimento do contexto (internação, ambulatório, PA, etc.)
+  - name: atend_ie_clinica
+    description: Clínica do atendimento (contexto)
+  - name: _context_processed_at
+    description: Timestamp de processamento na camada silver_context
+- name: movimentacao_paciente
+  description: 'Registro de passagem do paciente por unidade assistencial, enriquecido com contexto do atendimento. Join:
+    silver_tasy_atend_paciente_unidade ← atendimento_paciente (N:1). Grão: 1 linha por passagem em unidade. Tratamento de
+    nulos alinhado à silver no contexto de atendimento.
 
-  - name: paciente
-    description: >
-      Entidade Paciente — composição de silver_tasy_paciente + endereco + contato.
-      PENDENTE: depende da ingestão CDC das tabelas PESSOA_FISICA, PESSOA_ENDERECO
-      e PESSOA_CONTATO do Tasy.
-    columns:
-      - name: id_paciente
-        description: "Chave primária"
-        tests:
-          - unique
-          - not_null
-      - name: dt_criacao
-        description: "Data de inserção no lakehouse"
-      - name: dt_atualizacao
-        description: "Última atualização"
-      - name: fonte_sistema
-        description: "Sistema de origem"
+    '
+  tags:
+  - silver_context
+  - tasy
+  - movimentacao_paciente
+  columns:
+  - name: nr_seq_interno
+    description: PK — sequência interna da passagem por unidade
+    tests:
+    - not_null
+    - unique
+  - name: nr_atendimento
+    description: FK para o atendimento
+    tests:
+    - not_null
+  - name: cd_setor_atendimento
+    description: Setor/unidade assistencial
+  - name: dh_entrada_unidade
+    description: Data/hora de entrada na unidade
+  - name: dh_saida_unidade
+    description: Data/hora de saída da unidade
+  - name: cd_tipo_acomodacao
+    description: Tipo de acomodação (leito, enfermaria, apartamento, etc.)
+  - name: cd_departamento
+    description: Departamento da unidade
+  - name: nr_seq_motivo_transf
+    description: Motivo da transferência entre unidades
+  - name: atend_cd_pessoa_fisica
+    description: Código do paciente (contexto do atendimento)
+  - name: atend_ie_tipo_atendimento
+    description: Tipo de atendimento (contexto — internação, ambulatório, PA, etc.)
+  - name: atend_ie_clinica
+    description: Clínica do atendimento (contexto)
+  - name: _context_processed_at
+    description: Timestamp de processamento na camada silver_context
+- name: paciente
+  description: 'Entidade Paciente — composição de silver_tasy_paciente + endereco + contato. PENDENTE: depende da ingestão
+    CDC das tabelas PESSOA_FISICA, PESSOA_ENDERECO e PESSOA_CONTATO do Tasy.
+
+    '
+  columns:
+  - name: id_paciente
+    description: Chave primária
+    tests:
+    - unique
+    - not_null
+  - name: dt_criacao
+    description: Data de inserção no lakehouse
+  - name: dt_atualizacao
+    description: Última atualização
+  - name: fonte_sistema
+    description: Sistema de origem
+- name: prescricao
+  description: 'Entidade consolidada de prescricao medica (farmacia).
+
+    Grao: 1 linha por prescricao medica liberada (dt_liberacao IS NOT NULL)
+
+    excluindo copias (cd_funcao_origem NOT IN 924, 950).
+
+    Fontes: silver_tasy_prescr_medica (cabecalho) + silver_tasy_prescr_material (itens agregados).
+
+    Dominio: farmacia.
+
+    Alimenta: gold_fct_sla_prescricao, gold_fct_cobertura_dispensacao, gold_fct_prescricao_quality.
+
+    '
+  columns:
+  - name: nr_prescricao
+    description: PK da prescricao medica.
+    tests:
+    - unique
+    - not_null
+  - name: nr_atendimento
+    description: FK para atendimento.
+    tests:
+    - not_null
+  - name: cd_medico
+    description: Medico prescritor.
+  - name: cd_setor_atendimento
+    description: Setor de origem da prescricao.
+  - name: dt_liberacao
+    description: Timestamp de liberacao pelo medico. Filtro universal exige NOT NULL.
+    tests:
+    - not_null
+  - name: qt_itens
+    description: Total de itens na prescricao (pos filtro ie_suspenso).
+    tests:
+    - not_null
+  - name: qt_medicamentos
+    description: Quantidade de itens do tipo medicamento (ie_agrupador=1).
+  - name: qt_materiais
+    description: Quantidade de itens do tipo material (ie_agrupador=2).
+  - name: ie_status_liberacao_farmacia
+    description: Status derivado de liberacao farmaceutica.
+    tests:
+    - accepted_values:
+        values:
+        - liberada_farmacia
+        - pendente_liberacao_farmacia
+        - sem_medicamento
+  - name: ie_tem_medicamento
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+  - name: ie_tem_controlado
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+- name: dispensacao
+  description: "Lote de dispensacao farmaceutica consolidado com agregados de itens, classificacao\ne turno. Inclui SLAs em\
+    \ minutos calculados entre cada etapa do ciclo G->A->D->E->R.\nGrao: 1 linha por lote de dispensacao (AP_LOTE.NR_SEQUENCIA).\n\
+    Fontes: silver_tasy_ap_lote + silver_tasy_ap_lote_item + silver_tasy_classif_lote_disp_far\n        + silver_tasy_regra_turno_disp.\n\
+    Dominio: farmacia.\nAlimenta: gold_fct_sla_dispensacao, gold_fct_cancelamento_lote,\n          gold_fct_desperdicio_operacional,\
+    \ gold_fct_volume_dispensado.\n"
+  columns:
+  - name: nr_lote
+    description: PK do lote de dispensacao.
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    description: FK para a prescricao originadora (100% match - cruzamentos.md).
+    tests:
+    - not_null
+  - name: nr_atendimento
+    tests:
+    - not_null
+  - name: cd_setor_atendimento
+    description: Setor destinatario do lote.
+    tests:
+    - not_null
+  - name: ie_status_lote
+    description: Status bruto do lote (dominio TASY 2116).
+    tests:
+    - not_null
+  - name: ds_classificacao
+    description: Descricao da classificacao (agrupar por este campo, nao por nr_seq_classif - cadastro tem duplicacoes IDs
+      4/19, 2/17, 5/20).
+  - name: qt_itens
+    description: Total de itens no lote.
+    tests:
+    - not_null
+  - name: qt_min_total_ciclo
+    description: SLA total em minutos (dt_geracao_lote -> dt_recebimento_setor). NULL quando ciclo incompleto.
+  - name: ie_status_ciclo
+    description: Status funcional derivado do ie_status_lote.
+    tests:
+    - accepted_values:
+        values:
+        - ciclo_completo
+        - cancelado
+        - suspenso
+        - entregue
+        - dispensado
+        - atendido
+        - gerado
+        - outro
+  - name: ie_cancelado_apos_disp
+    description: Lote cancelado APOS inicio de dispensacao (desperdicio operacional).
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+- name: item_dispensacao
+  description: "Item individual dispensado dentro de um lote (AP_LOTE_ITEM) com contexto do lote pai,\nmaterial e horario\
+    \ prescrito. Grao mais fino da cadeia de dispensacao.\nGrao: 1 linha por item dispensado (AP_LOTE_ITEM.NR_SEQUENCIA).\n\
+    Fontes: silver_tasy_ap_lote_item + silver_tasy_ap_lote + silver_tasy_material\n        + silver_tasy_prescr_mat_hor.\n\
+    Dominio: farmacia.\nAlimenta: gold_fct_volume_dispensado, gold_fct_cobertura_lote_vs_direta.\n"
+  columns:
+  - name: nr_seq_item
+    tests:
+    - unique
+    - not_null
+  - name: nr_seq_lote
+    description: FK para o lote pai (AP_LOTE).
+    tests:
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: nr_seq_mat_hor
+    description: FK para horario prescrito (PRESCR_MAT_HOR) - 100% match.
+  - name: ie_vinculado_horario
+    description: Indica se o item tem vinculo com horario prescrito.
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+- name: movimento_estoque
+  description: "Movimento fisico de estoque consolidado com valorizacao, operacao e material.\nInclui derivada ie_tipo_funcional\
+    \ que classifica o movimento por natureza de negocio\n(dispensacao_paciente, devolucao, entrada_nf_compra, transferencia,\
+    \ etc.).\nGrao: 1 linha por movimento de estoque (MOVIMENTO_ESTOQUE.NR_MOVIMENTO_ESTOQUE).\nFontes: silver_tasy_movimento_estoque\
+    \ + silver_tasy_movimento_estoque_valor (cd_tipo_valor=7)\n        + silver_tasy_operacao_estoque + silver_tasy_material.\n\
+    Dominio: farmacia.\nAlimenta: gold_fct_consumo_estoque, gold_fct_dispensacao_efetiva.\n"
+  columns:
+  - name: nr_movimento_estoque
+    tests:
+    - unique
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: cd_operacao_estoque
+    tests:
+    - not_null
+  - name: ie_tipo_funcional
+    description: Classificacao funcional derivada da combinacao origem/operacao.
+    tests:
+    - accepted_values:
+        values:
+        - dispensacao_paciente
+        - devolucao_paciente
+        - entrada_nf_compra
+        - transferencia
+        - entrada_outra
+        - saida_outra
+        - outro
+  - name: ds_operacao_estoque
+    description: Descricao da operacao (dimensao OPERACAO_ESTOQUE - 69 operacoes).
+- name: consumo_material
+  description: 'Material/medicamento consumido/cobrado por atendimento (MATERIAL_ATEND_PACIENTE)
+
+    com cadastro enriquecido. Base para analises de custo, margem e consumo por
+
+    convenio/setor.
+
+    Grao: 1 linha por material dispensado ao paciente (MATERIAL_ATEND_PACIENTE.NR_SEQUENCIA).
+
+    Fontes: silver_tasy_material_atend_paciente + silver_tasy_material.
+
+    Dominio: farmacia.
+
+    Alimenta: gold_fct_consumo_atendimento, gold_fct_margem_farmacia.
+
+    '
+  columns:
+  - name: nr_seq_consumo
+    tests:
+    - unique
+    - not_null
+  - name: nr_atendimento
+    tests:
+    - not_null
+  - name: cd_material
+    tests:
+    - not_null
+  - name: cd_convenio
+    description: Convenio que cobra o material.
+  - name: vl_margem_bruta
+    description: Derivada vl_convenio - vl_custo_medio (NULL quando algum valor for <= 0).
+- name: erro_prescricao
+  description: "Erros de prescricao detectados pelas regras de consistencia, enriquecidos com\ndescricao da regra e contexto\
+    \ clinico da prescricao.\nGrao: 1 linha por erro detectado (PRESCR_MEDICA_ERRO.NR_SEQUENCIA).\nFontes: silver_tasy_prescr_medica_erro\
+    \ + silver_tasy_prescr_medica\n        + silver_tasy_regra_consiste_prescr.\nDominio: farmacia.\nAlimenta: gold_fct_nao_conformidade_prescricao.\n"
+  columns:
+  - name: nr_seq_erro
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    description: FK para a prescricao com erro (100% match - cruzamentos.md).
+    tests:
+    - not_null
+  - name: nr_regra
+    description: FK para a regra que disparou o erro.
+  - name: ie_status_resolucao
+    description: Derivada do preenchimento de dt_resolucao.
+    tests:
+    - accepted_values:
+        values:
+        - resolvido
+        - pendente
+- name: analise_farmaceutica
+  description: 'Log de analise/intervencao farmaceutica com contexto da prescricao.
+
+    Volume: ~8 analises/dia, ~3K em 3 meses. Fonte correta para medir intervencoes reais
+
+    (vs GPT_REVALIDATION_EVENTS que reflete revalidacoes automaticas).
+
+    Grao: 1 linha por analise registrada (LOG_ANALISE_PRESCR.NR_SEQUENCIA).
+
+    Fontes: silver_tasy_log_analise_prescr + silver_tasy_prescr_medica.
+
+    Dominio: farmacia.
+
+    Alimenta: gold_fct_intervencao_farmaceutica.
+
+    '
+  columns:
+  - name: nr_seq_analise
+    tests:
+    - unique
+    - not_null
+  - name: nr_prescricao
+    description: FK para a prescricao analisada (100% match - cruzamentos.md).
+    tests:
+    - not_null
+  - name: cd_farmaceutico
+  - name: ie_tem_intervencao
+    description: Derivada - indica se ds_intervencao foi efetivamente preenchida.
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
+- name: material
+  description: "Cadastro mestre de material/medicamento consolidado. 88K registros (85% inativos,\n15% ativos). Grupos principais:\
+    \ 1=Medicamentos (89%), 2=Mat Hospitalar (7,6%), 5=Servico.\nInclui derivadas ie_categoria_funcional (quimioterapico/antibiotico/controlado/alto_risco/etc)\n\
+    e ie_ativo (flag booleano a partir de ie_situacao).\nGrao: 1 linha por material (cd_material).\nFontes: silver_tasy_material.\n\
+    Dominio: farmacia.\nAlimenta: gold_dim_medicamento (SCD1, filtrando por ie_ativo='S'), gold_fct_*\n          que referenciam\
+    \ cd_material.\n"
+  columns:
+  - name: cd_material
+    description: PK do material.
+    tests:
+    - unique
+    - not_null
+  - name: ds_material
+  - name: ie_tipo_material
+    description: 89% Medicamento ('1'), 7,6% Material ('2'), 1,4% Servico ('5').
+  - name: ie_situacao
+    description: A=ativo (15%), I=inativo (85%). Filtro de ativos aplicado em Gold.
+  - name: ie_categoria_funcional
+    description: Categoria funcional de negocio derivada de flags clinicas.
+    tests:
+    - accepted_values:
+        values:
+        - quimioterapico
+        - antibiotico
+        - controlado
+        - alto_risco
+        - medicamento_comum
+        - material_hospitalar
+        - servico
+        - outro
+  - name: ie_ativo
+    tests:
+    - accepted_values:
+        values:
+        - S
+        - N
