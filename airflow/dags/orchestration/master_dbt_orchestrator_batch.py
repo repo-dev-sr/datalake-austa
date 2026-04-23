@@ -9,6 +9,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
 
 from common.config import DBT_PROFILE_NAME, DBT_PROFILES_DIR, DBT_PROJECT_DIR, DBT_TARGET
 from common.dbt_cli import dbt_executable_path, dbt_subprocess_env
@@ -98,6 +99,7 @@ def master_dbt_orchestrator_batch_dag():
         wait_for_completion=True,
         poke_interval=30,
         reset_dag_run=False,
+        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     )
     trigger_silver_layer = TriggerDagRunOperator(
         task_id="trigger_silver_layer",
