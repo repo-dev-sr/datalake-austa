@@ -66,13 +66,13 @@ def master_dbt_orchestrator_batch_dag():
     _exe = dbt_executable_path()
     _profiles = str(Path(DBT_PROFILES_DIR).resolve())
 
-    trigger_raw_compaction = TriggerDagRunOperator(
-        task_id="trigger_raw_tasy_avro_compactor",
-        trigger_dag_id="raw_tasy_avro_compactor",
-        wait_for_completion=True,
-        poke_interval=30,
-        reset_dag_run=False,
-    )
+    # trigger_raw_compaction = TriggerDagRunOperator(
+    #     task_id="trigger_raw_tasy_avro_compactor",
+    #     trigger_dag_id="raw_tasy_avro_compactor",
+    #     wait_for_completion=True,
+    #     poke_interval=30,
+    #     reset_dag_run=False,
+    # )
 
     branch = BranchPythonOperator(
         task_id="branch_cli_or_skip",
@@ -116,7 +116,8 @@ def master_dbt_orchestrator_batch_dag():
         bash_command=dbt_run_command(select="path:models/silver_context"),
     )
 
-    trigger_raw_compaction >> branch >> [skip_cli, dbt_run_with_vars]
+    # trigger_raw_compaction >> branch >> [skip_cli, dbt_run_with_vars]
+    branch >> [skip_cli, dbt_run_with_vars]
     skip_cli >> dbt_bronze_layer
     dbt_run_with_vars >> dbt_bronze_layer
     dbt_bronze_layer >> dbt_silver_layer >> dbt_silver_context_layer
