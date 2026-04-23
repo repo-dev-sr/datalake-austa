@@ -9,10 +9,9 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 
 from common.config import DBT_PROFILE_NAME, DBT_PROFILES_DIR, DBT_PROJECT_DIR, DBT_TARGET
-from common.dbt_cli import dbt_deps_then_run_command, dbt_executable_path, dbt_run_command, dbt_subprocess_env
+from common.dbt_cli import dbt_executable_path, dbt_subprocess_env
 from common.default_args import DEFAULT_ARGS
 
 
@@ -93,34 +92,40 @@ def master_dbt_orchestrator_batch_dag():
         ),
     )
 
-    dbt_bronze_layer = BashOperator(
-        task_id="dbt_bronze_layer",
-        pool="spark_dbt",
-        queue="dbt",
-        env=_env,
-        bash_command=dbt_deps_then_run_command(select="path:models/bronze"),
-        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+    trigger_bronze_layer = TriggerDagRunOperator(
+        task_id="trigger_bronze_layer",
+        trigger_dag_id="bronze_dbt_task_group_all",
+        wait_for_completion=True,
+        poke_interval=30,
+        reset_dag_run=False,
     )
-    dbt_silver_layer = BashOperator(
-        task_id="dbt_silver_layer",
-        pool="spark_dbt",
-        queue="dbt",
-        env=_env,
-        bash_command=dbt_run_command(select="path:models/silver"),
+    trigger_silver_layer = TriggerDagRunOperator(
+        task_id="trigger_silver_layer",
+        trigger_dag_id="silver_dbt_task_group_all",
+        wait_for_completion=True,
+        poke_interval=30,
+        reset_dag_run=False,
     )
-    dbt_silver_context_layer = BashOperator(
-        task_id="dbt_silver_context_layer",
-        pool="spark_dbt",
-        queue="dbt",
-        env=_env,
-        bash_command=dbt_run_command(select="path:models/silver_context"),
+    trigger_silver_context_layer = TriggerDagRunOperator(
+        task_id="trigger_silver_context_layer",
+        trigger_dag_id="silver_context_dbt_task_group_all",
+        wait_for_completion=True,
+        poke_interval=30,
+        reset_dag_run=False,
+    )
+    trigger_gold_layer = TriggerDagRunOperator(
+        task_id="trigger_gold_layer",
+        trigger_dag_id="gold_dbt_task_group_all",
+        wait_for_completion=True,
+        poke_interval=30,
+        reset_dag_run=False,
     )
 
     # trigger_raw_compaction >> branch >> [skip_cli, dbt_run_with_vars]
     branch >> [skip_cli, dbt_run_with_vars]
-    skip_cli >> dbt_bronze_layer
-    dbt_run_with_vars >> dbt_bronze_layer
-    dbt_bronze_layer >> dbt_silver_layer >> dbt_silver_context_layer
+    skip_cli >> trigger_bronze_layer
+    dbt_run_with_vars >> trigger_bronze_layer
+    trigger_bronze_layer >> trigger_silver_layer >> trigger_silver_context_layer >> trigger_gold_layer
 
 
 master_dbt_orchestrator_batch_dag()
